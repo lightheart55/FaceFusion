@@ -6,12 +6,28 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>AI Face Fusion</title>
-    <!-- Polyfill for process.env to prevent ReferenceError crash on Vercel/Browser -->
+    
+    <!-- 1. Global Error Handler: Displays errors on screen instead of white screen -->
     <script>
+      window.onerror = function(msg, url, line, col, error) {
+        document.body.innerHTML = `
+          <div style="background: #111; color: #ff5555; font-family: monospace; padding: 20px; height: 100vh; overflow: auto;">
+            <h3 style="border-bottom: 1px solid #333; padding-bottom: 10px;">Application Error</h3>
+            <p><strong>Message:</strong> ${msg}</p>
+            <p><strong>Location:</strong> ${url}:${line}:${col}</p>
+            <pre style="background: #222; padding: 10px; border-radius: 5px; overflow-x: auto;">${error ? error.stack : 'No stack trace'}</pre>
+            <p style="color: #888; margin-top: 20px;">If you see this on Vercel, check your API_KEY configuration or Import Map compatibility.</p>
+          </div>
+        `;
+      };
+
+      // Polyfill process.env safely
       window.process = window.process || { env: { API_KEY: '' } };
     </script>
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
     <style>
       body {
         -webkit-font-smoothing: antialiased;
@@ -19,43 +35,49 @@
         touch-action: manipulation;
       }
     </style>
-    <!-- Use public ESM CDNs (esm.sh) for better accessibility outside internal environments -->
+
+    <!-- 2. Fixed Import Map: Use consistent React 18 versions via esm.sh to avoid dependency hell -->
     <script type="importmap">
 {
   "imports": {
     "@google/genai": "https://esm.sh/@google/genai@0.1.1",
     "react": "https://esm.sh/react@18.2.0",
-    "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+    "react-dom/client": "https://esm.sh/react-dom@18.2.0/client?deps=react@18.2.0",
     "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
     "react/": "https://esm.sh/react@^19.2.3/"
   }
 }
 </script>
+
     <script>
       // Dynamic PWA Manifest Generation
-      const manifest = {
-        "name": "AI Face Fusion",
-        "short_name": "FaceFusion",
-        "start_url": ".",
-        "display": "standalone",
-        "background_color": "#111827",
-        "theme_color": "#111827",
-        "orientation": "portrait",
-        "scope": ".",
-        "icons": [
-          {
-            "src": "https://cdn-icons-png.flaticon.com/512/11698/11698436.png",
-            "sizes": "192x192",
-            "type": "image/png"
-          }
-        ]
-      };
-      const manifestBlob = new Blob([JSON.stringify(manifest)], {type: 'application/manifest+json'});
-      const manifestUrl = URL.createObjectURL(manifestBlob);
-      const link = document.createElement('link');
-      link.rel = 'manifest';
-      link.href = manifestUrl;
-      document.head.appendChild(link);
+      try {
+        const manifest = {
+          "name": "AI Face Fusion",
+          "short_name": "FaceFusion",
+          "start_url": ".",
+          "display": "standalone",
+          "background_color": "#111827",
+          "theme_color": "#111827",
+          "orientation": "portrait",
+          "scope": ".",
+          "icons": [
+            {
+              "src": "https://cdn-icons-png.flaticon.com/512/11698/11698436.png",
+              "sizes": "192x192",
+              "type": "image/png"
+            }
+          ]
+        };
+        const manifestBlob = new Blob([JSON.stringify(manifest)], {type: 'application/manifest+json'});
+        const manifestUrl = URL.createObjectURL(manifestBlob);
+        const link = document.createElement('link');
+        link.rel = 'manifest';
+        link.href = manifestUrl;
+        document.head.appendChild(link);
+      } catch (e) {
+        console.warn("PWA Manifest creation failed", e);
+      }
     </script>
   </head>
   <body class="bg-gray-900 select-none text-white">
@@ -99,7 +121,8 @@
         try {
           const API_KEY = process.env.API_KEY;
           if (!API_KEY) {
-            throw new Error("Chưa cấu hình API Key. Vui lòng kiểm tra cài đặt môi trường (process.env.API_KEY).");
+            // Provide a clearer error message for Vercel users
+            throw new Error("API Key không tìm thấy. Nếu bạn đang chạy trên Vercel, hãy đảm bảo bạn đã cấu hình Environment Variables hoặc chỉnh sửa code để thêm key.");
           }
           
           const ai = new GoogleGenAI({ apiKey: API_KEY });
@@ -107,24 +130,20 @@
           const originalImage = getBase64Data(originalImageBase64);
           const templateImage = getBase64Data(templateImageBase64);
 
-          const prompt = `**YÊU CẦU NHIỆM VỤ: FACE SWAP CHUYÊN NGHIỆP**
+          // PROMPT LOGIC: STRICT BODY REPLACEMENT
+          const prompt = `**YÊU CẦU NHIỆM VỤ: FACE SWAP - GIỮ MẶT, THAY BODY**
 
-**MỤC TIÊU:** Ghép khuôn mặt từ Ảnh 1 vào cơ thể của Ảnh 2 sao cho hoàn hảo và tự nhiên nhất.
+**ĐẦU VÀO:**
+*   **HÌNH 1 (Nguồn Mặt):** Lấy khuôn mặt từ ảnh này.
+*   **HÌNH 2 (Nguồn Body):** Lấy toàn bộ cơ thể, trang phục, tóc tai và bối cảnh từ ảnh này.
 
-**DỮ LIỆU ĐẦU VÀO:**
-1.  **ẢNH GỐC (Ảnh 1):** Chỉ lấy **KHUÔN MẶT**.
-2.  **ẢNH MẪU (Ảnh 2):** Giữ nguyên **THÂN THỂ, TÓC (nếu cần), TRANG PHỤC, BỐI CẢNH**.
+**THỰC HIỆN:**
+1.  **CẮT GHÉP:** Thay thế khuôn mặt của người trong HÌNH 2 bằng khuôn mặt của người trong HÌNH 1.
+2.  **BẢO TOÀN DANH TÍNH:** Khuôn mặt mới phải giữ nguyên 100% đặc điểm nhận dạng (mắt, mũi, miệng) của HÌNH 1.
+3.  **BẢO TOÀN BỐI CẢNH:** Tuyệt đối KHÔNG thay đổi tư thế, quần áo, hình dáng cơ thể hay hậu cảnh của HÌNH 2.
+4.  **HÒA TRỘN:** Điều chỉnh màu da (skin tone) và ánh sáng của khuôn mặt (HÌNH 1) để khớp hoàn hảo với cơ thể (HÌNH 2).
 
-**QUY TẮC BẮT BUỘC:**
-1.  **BẢO TOÀN KHUÔN MẶT:** Sao chép chính xác các đặc điểm nhận dạng của khuôn mặt từ Ảnh 1 (mắt, mũi, miệng, cấu trúc xương mặt). Không được làm biến dạng hoặc thay đổi danh tính người trong ảnh gốc.
-2.  **THAY THẾ CHÍNH XÁC:** Thay thế khuôn mặt của người trong Ảnh 2 bằng khuôn mặt của Ảnh 1.
-3.  **GIỮ NGUYÊN THÂN THỂ:** Tuyệt đối giữ nguyên tư thế, hình dáng cơ thể, quần áo, tay chân và bối cảnh của Ảnh 2. KHÔNG ĐƯỢC thay đổi body của Ảnh 2.
-4.  **HÒA TRỘN (BLENDING):**
-    *   **Màu da (Skin Tone):** Chỉnh màu da mặt (từ Ảnh 1) để khớp hoàn toàn với màu da cổ/tay (của Ảnh 2).
-    *   **Ánh sáng (Lighting):** Tái tạo hướng sáng, bóng đổ trên mặt khớp với môi trường của Ảnh 2.
-    *   **Độ phân giải:** Đảm bảo độ nét của khuôn mặt tương đồng với tổng thể bức ảnh.
-
-**KẾT QUẢ:** Một bức ảnh chân thực, không lộ dấu vết cắt ghép.`;
+**KẾT QUẢ:** Ảnh hoàn thiện trông tự nhiên như thể người trong HÌNH 1 đang mặc đồ và đứng trong bối cảnh của HÌNH 2.`;
 
           const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash-image',
@@ -163,13 +182,9 @@
         } catch (error) {
           console.error("Error calling Gemini API:", error);
           if (error instanceof Error) {
-              if (error.message.includes('429')) {
-                   throw new Error('Quá nhiều yêu cầu. Vui lòng thử lại sau.');
-              }
-              // Pass through the specific error message
-              throw error; 
+             throw error;
           }
-          throw new Error('Đã xảy ra lỗi khi tạo ảnh. Vui lòng thử lại.');
+          throw new Error('Đã xảy ra lỗi không xác định khi gọi AI.');
         }
       };
 
