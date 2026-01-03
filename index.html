@@ -1,535 +1,507 @@
-
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>AI Face Fusion</title>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Magic Face AI</title>
     
-    <!-- Error Handler -->
-    <script>
-      window.onerror = function(msg, url, line, col, error) {
-        // Ignore resize observer loop errors
-        if (msg.includes("ResizeObserver")) return;
-        
-        document.body.innerHTML = `
-          <div style="background: #111; color: #ff5555; font-family: monospace; padding: 20px; height: 100vh; overflow: auto;">
-            <h3 style="border-bottom: 1px solid #333; padding-bottom: 10px;">Application Error</h3>
-            <p><strong>Message:</strong> ${msg}</p>
-            <p style="color: #888; margin-top: 20px;">Please refresh the page. If the error persists, check your browser console.</p>
-          </div>
-        `;
-      };
-    </script>
-
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
-    <style>
-      body {
-        -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
-        touch-action: manipulation;
-      }
-      /* Custom Scrollbar */
-      ::-webkit-scrollbar { width: 8px; }
-      ::-webkit-scrollbar-track { background: #1f2937; }
-      ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
-      ::-webkit-scrollbar-thumb:hover { background: #6b7280; }
-    </style>
-
-    <!-- Import Map -->
-    <script type="importmap">
-{
-  "imports": {
-    "@google/genai": "https://esm.sh/@google/genai@0.1.1",
-    "react": "https://esm.sh/react@18.2.0",
-    "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-    "react/": "https://esm.sh/react@^19.2.3/"
-  }
-}
-</script>
-  </head>
-  <body class="bg-gray-900 select-none text-white min-h-screen flex flex-col">
-    <div id="root" class="flex-grow"></div>
-
-    <script type="text/babel" data-type="module" data-presets="react,typescript">
-      import React, { useState, useCallback, useEffect, useRef } from 'react';
-      import ReactDOM from 'react-dom/client';
-      import { GoogleGenAI, Modality } from "@google/genai";
-
-      // ==========================================
-      // UTILS
-      // ==========================================
-      const fileToBase64 = (file: File): Promise<string> => {
-        return new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.readAsDataURL(file);
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = (error) => reject(error);
-        });
-      };
-
-      const getBase64Data = (dataUri: string): { mimeType: string; data: string } => {
-        const parts = dataUri.split(',');
-        if (parts.length !== 2) {
-          throw new Error('Invalid data URI');
-        }
-        const mimeType = parts[0].split(':')[1].split(';')[0];
-        const data = parts[1];
-        return { mimeType, data };
-      };
-
-      // ==========================================
-      // ICONS
-      // ==========================================
-      const KeyIcon = (props) => (
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 0 1 3 3m3 0a6 6 0 0 1-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1 1 21.75 8.25Z" />
-        </svg>
-      );
-      
-      const UploadIcon = (props) => (
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
-          </svg>
-      );
-
-      const LoadingSpinnerIcon = (props) => (
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="animate-spin" {...props}>
-          <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-        </svg>
-      );
-
-      const WandIcon = (props) => (
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9.53 16.122a3 3 0 0 0-5.78 1.128 2.25 2.25 0 0 1-2.475 2.118A2.25 2.25 0 0 1 .75 15.75V14.25m18 0V15.75a2.25 2.25 0 0 1-2.25 2.25A2.25 2.25 0 0 1 13.5 15.75V14.25m-6 0V9.75M9.75 9.75h4.5m-4.5 0a3.75 3.75 0 0 1-3.75-3.75V4.5a3.75 3.75 0 0 1 3.75-3.75h4.5A3.75 3.75 0 0 1 18 4.5v1.5a3.75 3.75 0 0 1-3.75 3.75M6.75 9.75h4.5" />
-          </svg>
-      );
-
-      const DownloadIcon = (props) => (
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
-          </svg>
-      );
-
-      const SparklesIcon = (props) => (
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456Z" />
-          </svg>
-      );
-
-      const ShareIcon = (props) => (
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186Zm0-12.814a2.25 2.25 0 1 0 3.933-2.185 2.25 2.25 0 0 0-3.933 2.185Z" />
-          </svg>
-      );
-
-      // ==========================================
-      // SERVICES
-      // ==========================================
-      
-      const generateSwappedImage = async (
-        apiKey: string,
-        originalImageBase64: string,
-        templateImageBase64: string
-      ): Promise<string> => {
-        try {
-          if (!apiKey) throw new Error("API Key bị thiếu.");
-
-          const ai = new GoogleGenAI({ apiKey: apiKey });
-          
-          const originalImage = getBase64Data(originalImageBase64);
-          const templateImage = getBase64Data(templateImageBase64);
-
-          // PROMPT LOGIC: STRICT BODY REPLACEMENT
-          const prompt = `**YÊU CẦU NHIỆM VỤ: FACE SWAP - GIỮ MẶT, THAY BODY**
-
-**ĐẦU VÀO:**
-*   **HÌNH 1 (Nguồn Mặt):** Lấy khuôn mặt từ ảnh này.
-*   **HÌNH 2 (Nguồn Body):** Lấy toàn bộ cơ thể, trang phục, tóc tai và bối cảnh từ ảnh này.
-
-**THỰC HIỆN:**
-1.  **CẮT GHÉP:** Thay thế khuôn mặt của người trong HÌNH 2 bằng khuôn mặt của người trong HÌNH 1.
-2.  **BẢO TOÀN DANH TÍNH:** Khuôn mặt mới phải giữ nguyên 100% đặc điểm nhận dạng (mắt, mũi, miệng) của HÌNH 1.
-3.  **BẢO TOÀN BỐI CẢNH:** Tuyệt đối KHÔNG thay đổi tư thế, quần áo, hình dáng cơ thể hay hậu cảnh của HÌNH 2.
-4.  **HÒA TRỘN:** Điều chỉnh màu da (skin tone) và ánh sáng của khuôn mặt (HÌNH 1) để khớp hoàn hảo với cơ thể (HÌNH 2).
-
-**KẾT QUẢ:** Ảnh hoàn thiện trông tự nhiên như thể người trong HÌNH 1 đang mặc đồ và đứng trong bối cảnh của HÌNH 2.`;
-
-          const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash-image',
-            contents: {
-              parts: [
-                {
-                  inlineData: {
-                    mimeType: originalImage.mimeType,
-                    data: originalImage.data,
-                  },
-                },
-                {
-                  inlineData: {
-                      mimeType: templateImage.mimeType,
-                      data: templateImage.data,
-                  }
-                },
-                { text: prompt },
-              ],
-            },
-            config: {
-              responseModalities: [Modality.IMAGE],
-            },
-          });
-
-          for (const part of response.candidates?.[0]?.content?.parts || []) {
-            if (part.inlineData) {
-              const base64ImageBytes: string = part.inlineData.data;
-              const mimeType = part.inlineData.mimeType;
-              return `data:${mimeType};base64,${base64ImageBytes}`;
-            }
-          }
-          
-          throw new Error('Không nhận được hình ảnh từ API. Vui lòng thử lại.');
-
-        } catch (error) {
-          console.error("Error calling Gemini API:", error);
-          if (error instanceof Error) {
-             throw error;
-          }
-          throw new Error('Đã xảy ra lỗi không xác định khi gọi AI.');
-        }
-      };
-
-      // ==========================================
-      // COMPONENTS
-      // ==========================================
-      
-      const ApiKeyModal = ({ onSubmit }) => {
-        const [key, setKey] = useState('');
-        
-        const handleSubmit = (e) => {
-          e.preventDefault();
-          if (key.trim().length > 0) {
-            onSubmit(key.trim());
-          }
-        };
-
-        return (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-gray-800 border border-gray-700 rounded-2xl p-8 max-w-md w-full shadow-2xl relative overflow-hidden">
-               <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500"></div>
-               <div className="flex flex-col items-center text-center">
-                  <div className="bg-indigo-500/10 p-3 rounded-full mb-4">
-                    <KeyIcon className="w-8 h-8 text-indigo-400" />
-                  </div>
-                  <h2 className="text-2xl font-bold text-white mb-2">Nhập Gemini API Key</h2>
-                  <p className="text-gray-400 text-sm mb-6">
-                    Ứng dụng này chạy trực tiếp trên trình duyệt của bạn. Key của bạn không được lưu trữ trên server.
-                  </p>
-                  
-                  <form onSubmit={handleSubmit} className="w-full">
-                    <input 
-                      type="password" 
-                      placeholder="Paste your API Key here..." 
-                      className="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all mb-4"
-                      value={key}
-                      onChange={(e) => setKey(e.target.value)}
-                      autoFocus
-                    />
-                    <button 
-                      type="submit"
-                      disabled={!key}
-                      className="w-full bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white font-semibold py-3 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-indigo-500/20"
-                    >
-                      Bắt đầu
-                    </button>
-                  </form>
-                  <a href="https://aistudio.google.com/app/apikey" target="_blank" className="mt-4 text-xs text-indigo-400 hover:text-indigo-300 underline">
-                    Lấy API Key miễn phí tại Google AI Studio
-                  </a>
-               </div>
-            </div>
-          </div>
-        )
-      }
-
-      const Header = ({ onChangeKey }) => {
-          const handleShare = () => {
-              const htmlContent = document.documentElement.outerHTML;
-              const blob = new Blob([htmlContent], { type: 'text/html' });
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = 'AI-Face-Fusion.html';
-              document.body.appendChild(a);
-              a.click();
-              document.body.removeChild(a);
-              URL.revokeObjectURL(url);
-          };
-
-          return (
-              <header className="text-center relative">
-                  <div className="absolute top-0 right-0 flex gap-2">
-                      <button 
-                          onClick={onChangeKey}
-                          className="flex items-center gap-2 px-3 py-1.5 text-xs sm:text-sm font-medium text-gray-400 bg-white/5 rounded-lg hover:bg-white/10 transition-colors border border-white/10"
-                          title="Thay đổi API Key"
-                      >
-                          <KeyIcon className="w-4 h-4" />
-                          <span className="hidden sm:inline">Change Key</span>
-                      </button>
-                      <button 
-                          onClick={handleShare}
-                          className="flex items-center gap-2 px-3 py-1.5 text-xs sm:text-sm font-medium text-indigo-300 bg-white/5 rounded-lg hover:bg-white/10 transition-colors border border-white/10"
-                          title="Tải về file HTML chạy Offline"
-                      >
-                          <ShareIcon className="w-4 h-4" />
-                          <span className="hidden sm:inline">Tải App</span>
-                      </button>
-                  </div>
-                  <div className="inline-flex items-center justify-center gap-3 pt-8 sm:pt-0">
-                      <SparklesIcon className="w-10 h-10 text-indigo-400"/>
-                      <h1 className="text-4xl sm:text-5xl font-bold tracking-tight bg-gradient-to-r from-purple-400 via-indigo-400 to-blue-500 text-transparent bg-clip-text">
-                          AI Face Fusion
-                      </h1>
-                  </div>
-                  <p className="mt-6 text-lg leading-8 text-gray-300">
-                  Giữ lại gương mặt bạn, thay đổi mọi thứ còn lại.
-                  </p>
-              </header>
-          )
-      }
-
-      const ImageUploader = ({ id, title, onImageUpload, imagePreviewUrl }) => {
-        const inputRef = useRef(null);
-
-        const handleFileChange = (event) => {
-          const file = event.target.files?.[0];
-          if (file) {
-            onImageUpload(file);
-          }
-        };
-
-        const handleClick = () => {
-          inputRef.current?.click();
-        };
-
-        return (
-          <div className="flex flex-col items-center">
-            <h2 className="text-xl font-semibold text-gray-200 mb-4">{title}</h2>
-            <div 
-              onClick={handleClick}
-              className="relative group w-full aspect-square max-w-md bg-white/5 rounded-xl border-2 border-dashed border-gray-600 hover:border-indigo-500 transition-all duration-300 cursor-pointer flex justify-center items-center overflow-hidden"
-            >
-              <input
-                ref={inputRef}
-                id={id}
-                type="file"
-                accept="image/png, image/jpeg, image/webp"
-                className="hidden"
-                onChange={handleFileChange}
-              />
-              {imagePreviewUrl ? (
-                <>
-                  <img src={imagePreviewUrl} alt="Preview" className="w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex justify-center items-center">
-                      <p className="text-white text-lg">Thay đổi ảnh</p>
-                  </div>
-                </>
-              ) : (
-                <div className="text-center text-gray-400 p-4">
-                  <UploadIcon className="w-12 h-12 mx-auto mb-2" />
-                  <p className="font-semibold">Nhấp để tải ảnh lên</p>
-                  <p className="text-sm">PNG, JPG, WEBP</p>
-                </div>
-              )}
-            </div>
-          </div>
-        );
-      };
-
-      const GenerateButton = ({ onClick, isLoading, disabled }) => {
-          return (
-              <button
-                  onClick={onClick}
-                  disabled={isLoading || disabled}
-                  className="inline-flex items-center justify-center gap-2 px-8 py-4 text-lg font-semibold text-white bg-indigo-600 rounded-full shadow-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 focus:ring-offset-gray-900 transition-all duration-300 disabled:bg-indigo-900/50 disabled:cursor-not-allowed transform hover:scale-105 disabled:scale-100"
-              >
-                  {isLoading ? (
-                      <>
-                          <LoadingSpinnerIcon className="w-6 h-6" />
-                          Đang xử lý...
-                      </>
-                  ) : (
-                      <>
-                          <WandIcon className="w-6 h-6" />
-                          Tạo ảnh
-                      </>
-                  )}
-              </button>
-          )
-      }
-
-      const ResultDisplay = ({ isLoading, resultImage }) => {
-          if (isLoading) {
-              return (
-                  <div className="mt-12">
-                      <h2 className="text-2xl font-bold text-center mb-6">Kết quả</h2>
-                      <div className="w-full aspect-video bg-white/5 rounded-xl border-2 border-dashed border-gray-600 flex flex-col justify-center items-center text-gray-400">
-                          <LoadingSpinnerIcon className="w-12 h-12 mb-4"/>
-                          <p className="text-lg font-semibold">AI đang sáng tạo...</p>
-                          <p className="text-sm mt-2 max-w-md text-center">Đang phân tích khuôn mặt và ghép vào cơ thể mới. Vui lòng chờ giây lát.</p>
-                      </div>
-                  </div>
-              )
-          }
-
-          if (!resultImage) {
-              return null;
-          }
-
-          return (
-              <div className="mt-12">
-                  <h2 className="text-2xl font-bold text-center mb-6">Kết quả của bạn</h2>
-                  <div className="w-full max-w-2xl mx-auto">
-                      <div className="relative group">
-                          <img src={resultImage} alt="Generated result" className="rounded-xl shadow-2xl shadow-indigo-500/20 w-full" />
-                          <a
-                              href={resultImage}
-                              download="ai-face-fusion-result.png"
-                              className="absolute bottom-4 right-4 flex items-center gap-2 bg-black/50 text-white px-4 py-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 hover:bg-black/80"
-                          >
-                              <DownloadIcon className="w-5 h-5" />
-                              Tải xuống
-                          </a>
-                      </div>
-                  </div>
-              </div>
-          )
-      }
-
-      // ==========================================
-      // MAIN APP
-      // ==========================================
-      
-      const App = () => {
-        const [apiKey, setApiKey] = useState(() => localStorage.getItem('GEMINI_API_KEY') || '');
-        const [originalImage, setOriginalImage] = useState(null);
-        const [templateImage, setTemplateImage] = useState(null);
-        const [resultImage, setResultImage] = useState(null);
-        const [isLoading, setIsLoading] = useState(false);
-        const [error, setError] = useState(null);
-
-        const handleSetApiKey = (key) => {
-            setApiKey(key);
-            localStorage.setItem('GEMINI_API_KEY', key);
-        };
-
-        const handleChangeKey = () => {
-            setApiKey('');
-            localStorage.removeItem('GEMINI_API_KEY');
-        }
-
-        const handleImageUpload = async (file, type) => {
-          try {
-            const base64 = await fileToBase64(file);
-            if (type === 'original') {
-              setOriginalImage(base64);
-            } else {
-              setTemplateImage(base64);
-            }
-            setResultImage(null);
-            setError(null);
-          } catch (err) {
-            setError('Không thể tải ảnh lên. Vui lòng thử lại.');
-          }
-        };
-
-        const handleGenerate = useCallback(async () => {
-          if (!originalImage || !templateImage) {
-            setError('Vui lòng tải lên cả hai ảnh gốc và ảnh mẫu.');
-            return;
-          }
-          if (!apiKey) {
-            setError('Vui lòng nhập API Key.');
-            return;
-          }
-          setIsLoading(true);
-          setResultImage(null);
-          setError(null);
-          try {
-            const generatedImage = await generateSwappedImage(apiKey, originalImage, templateImage);
-            setResultImage(generatedImage);
-          } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : 'Đã xảy ra lỗi không mong muốn.';
-            setError(`Lỗi: ${errorMessage}`);
-          } finally {
-            setIsLoading(false);
-          }
-        }, [apiKey, originalImage, templateImage]);
-
-        return (
-          <div className="min-h-screen bg-gray-900 text-white font-sans">
-            {!apiKey && <ApiKeyModal onSubmit={handleSetApiKey} />}
-            
-            <div className="relative isolate px-6 pt-14 lg:px-8">
-              <div className="absolute inset-x-0 -top-40 -z-10 transform-gpu overflow-hidden blur-3xl sm:-top-80" aria-hidden="true">
-                <div className="relative left-[calc(50%-11rem)] aspect-[1155/678] w-[36.125rem] -translate-x-1/2 rotate-[30deg] bg-gradient-to-tr from-[#ff80b5] to-[#9089fc] opacity-30 sm:left-[calc(50%-30rem)] sm:w-[72.1875rem]" style={{ clipPath: 'polygon(74.1% 44.1%, 100% 61.6%, 97.5% 26.9%, 85.5% 0.1%, 80.7% 2%, 72.5% 32.5%, 60.2% 62.4%, 52.4% 68.1%, 47.5% 58.3%, 45.2% 34.5%, 27.5% 76.7%, 0.1% 64.9%, 17.9% 100%, 27.6% 76.8%, 76.1% 97.7%, 74.1% 44.1%)' }}></div>
-              </div>
-
-              <main className="container mx-auto px-4 py-8">
-                <Header onChangeKey={handleChangeKey} />
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-12">
-                  <ImageUploader 
-                    id="original-image"
-                    title="Ảnh Gốc (Gương mặt)"
-                    onImageUpload={(file) => handleImageUpload(file, 'original')}
-                    imagePreviewUrl={originalImage}
-                  />
-                  <ImageUploader 
-                    id="template-image"
-                    title="Ảnh Mẫu (Bối cảnh)"
-                    onImageUpload={(file) => handleImageUpload(file, 'template')}
-                    imagePreviewUrl={templateImage}
-                  />
-                </div>
-
-                <div className="mt-12 text-center">
-                  <GenerateButton 
-                    onClick={handleGenerate}
-                    isLoading={isLoading}
-                    disabled={!originalImage || !templateImage}
-                  />
-                </div>
-
-                {error && <p className="mt-8 text-center text-red-400 bg-red-900/20 p-3 rounded-md">{error}</p>}
-                
-                <ResultDisplay isLoading={isLoading} resultImage={resultImage} />
-
-              </main>
-
-              <div className="absolute inset-x-0 top-[calc(100%-13rem)] -z-10 transform-gpu overflow-hidden blur-3xl sm:top-[calc(100%-30rem)]" aria-hidden="true">
-                <div className="relative left-[calc(50%+3rem)] aspect-[1155/678] w-[36.125rem] -translate-x-1/2 bg-gradient-to-tr from-[#ff80b5] to-[#9089fc] opacity-30 sm:left-[calc(50%+36rem)] sm:w-[72.1875rem]" style={{ clipPath: 'polygon(74.1% 44.1%, 100% 61.6%, 97.5% 26.9%, 85.5% 0.1%, 80.7% 2%, 72.5% 32.5%, 60.2% 62.4%, 52.4% 68.1%, 47.5% 58.3%, 45.2% 34.5%, 27.5% 76.7%, 0.1% 64.9%, 17.9% 100%, 27.6% 76.8%, 76.1% 97.7%, 74.1% 44.1%)' }}></div>
-              </div>
-            </div>
-          </div>
-        );
-      };
-
-      const rootElement = document.getElementById('root');
-      if (!rootElement) {
-        throw new Error("Could not find root element to mount to");
-      }
-
-      const root = ReactDOM.createRoot(rootElement);
-      root.render(
-        <React.StrictMode>
-          <App />
-        </React.StrictMode>
-      );
+    <!-- Polyfill for process.env (Required for some libs) -->
+    <script>
+        window.process = { env: { NODE_ENV: 'production' } };
     </script>
-  </body>
+
+    <!-- Import Map for Libraries (ES Modules) -->
+    <script type="importmap">
+    {
+        "imports": {
+            "react": "https://esm.sh/react@18.2.0",
+            "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+            "lucide-react": "https://esm.sh/lucide-react@0.344.0",
+            "@google/genai": "https://esm.sh/@google/genai@0.0.10"
+        }
+    }
+    </script>
+    
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        /* Mobile-first overrides */
+        body {
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+            user-select: none;
+        }
+        input, textarea {
+            user-select: text;
+        }
+        /* Custom Scrollbar for style selector */
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        @keyframes scan {
+            0% { top: 0%; opacity: 0; }
+            50% { opacity: 1; }
+            100% { top: 100%; opacity: 0; }
+        }
+        .scan-line {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: #3b82f6;
+            box-shadow: 0 0 10px #3b82f6;
+            animation: scan 2s linear infinite;
+        }
+        /* Error Overlay */
+        #error-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: #fff;
+            color: #ef4444;
+            padding: 20px;
+            z-index: 9999;
+            white-space: pre-wrap;
+            font-family: monospace;
+            overflow: auto;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 antialiased min-h-screen pb-safe">
+    <div id="root"></div>
+    <div id="error-overlay"></div>
+
+    <!-- Global Error Handler -->
+    <script>
+        window.addEventListener('error', function(e) {
+            const overlay = document.getElementById('error-overlay');
+            if (overlay) {
+                overlay.style.display = 'block';
+                overlay.innerText += 'Error: ' + e.message + '\n';
+            }
+        });
+        window.addEventListener('unhandledrejection', function(e) {
+            const overlay = document.getElementById('error-overlay');
+            if (overlay) {
+                overlay.style.display = 'block';
+                overlay.innerText += 'Promise Error: ' + e.reason + '\n';
+            }
+        });
+    </script>
+
+    <!-- Main Application Logic -->
+    <script type="text/babel" data-type="module">
+        import React, { useState, useEffect, useRef } from 'react';
+        import { createRoot } from 'react-dom/client';
+        import { 
+            Settings, 
+            Image as ImageIcon, 
+            Wand2, 
+            Download, 
+            Share2, 
+            Key, 
+            Loader2, 
+            Camera, 
+            Stethoscope,
+            ShieldCheck,
+            User,
+            Rocket,
+            AlertCircle,
+            CheckCircle2
+        } from 'lucide-react';
+        import { GoogleGenAI } from "@google/genai";
+
+        // --- PWA & APK Hack Logic ---
+        const setupPWA = () => {
+            // 1. Dynamic Manifest
+            const manifest = {
+                name: "Magic Face AI",
+                short_name: "MagicFace",
+                start_url: '.',
+                display: 'standalone',
+                background_color: '#f8fafc',
+                theme_color: '#3b82f6',
+                icons: [{ src: 'https://cdn-icons-png.flaticon.com/512/11696/11696683.png', sizes: '192x192', type: 'image/png' }]
+            };
+            const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+            const manifestUrl = URL.createObjectURL(manifestBlob);
+            let link = document.querySelector('link[rel="manifest"]');
+            if (!link) {
+                link = document.createElement('link');
+                link.rel = 'manifest';
+                document.head.appendChild(link);
+            }
+            link.href = manifestUrl;
+
+            // 2. Virtual Service Worker
+            if ('serviceWorker' in navigator) {
+                const swCode = `
+                    self.addEventListener('install', (e) => self.skipWaiting());
+                    self.addEventListener('activate', (e) => self.clients.claim());
+                    self.addEventListener('fetch', (e) => {});
+                `;
+                const swBlob = new Blob([swCode], { type: 'application/javascript' });
+                navigator.serviceWorker.register(URL.createObjectURL(swBlob))
+                    .catch(err => console.log('SW Error:', err));
+            }
+        };
+
+        const shareAsAPK = async () => {
+            try {
+                const htmlContent = document.documentElement.outerHTML;
+                const blob = new Blob([htmlContent], { type: 'application/vnd.android.package-archive' });
+                const fileName = `MagicFace_AI.apk`;
+                const file = new File([blob], fileName, { type: 'application/vnd.android.package-archive' });
+
+                if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+                    await navigator.share({
+                        files: [file],
+                        title: "Magic Face AI",
+                        text: 'Tải ứng dụng Magic Face AI ngay!'
+                    });
+                } else {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = fileName;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                }
+            } catch (error) {
+                alert('Không thể chia sẻ APK: ' + error.message);
+            }
+        };
+
+        // --- Styles Config ---
+        const STYLES = [
+            { id: 'doctor', name: 'Bác sĩ', icon: <Stethoscope size={20} />, prompt: "Make this person look like a professional doctor in a hospital setting. White coat, stethoscope around neck, professional medical lighting. Photorealistic, 8k." },
+            { id: 'nurse', name: 'Y tá', icon: <ShieldCheck size={20} />, prompt: "Make this person look like a caring nurse in a modern clinic. Blue or white scrubs, medical environment. Photorealistic, 8k." },
+            { id: 'superhero', name: 'Siêu nhân', icon: <ShieldCheck size={20} />, prompt: "Transform this person into a powerful superhero with a glowing futuristic suit. Epic background with city lights. Cinematic lighting, Marvel style." },
+            { id: 'astronaut', name: 'Phi hành gia', icon: <Rocket size={20} />, prompt: "Make this person look like an astronaut wearing a high-tech space suit inside a spaceship. Galaxy background through window. 8k resolution." },
+            { id: 'cyberpunk', name: 'Cyberpunk', icon: <User size={20} />, prompt: "Transform this person into a cyberpunk character with neon lights, futuristic fashion, night city background. Cyberpunk 2077 aesthetic." },
+        ];
+
+        // --- Main App Component ---
+        const App = () => {
+            // State
+            const [apiKey, setApiKey] = useState(localStorage.getItem('gemini_api_key') || '');
+            const [showSettings, setShowSettings] = useState(false);
+            const [selectedImage, setSelectedImage] = useState(null);
+            const [generatedImage, setGeneratedImage] = useState(null);
+            const [selectedStyle, setSelectedStyle] = useState(STYLES[0]);
+            const [isLoading, setIsLoading] = useState(false);
+            const [error, setError] = useState(null);
+            
+            // Refs
+            const fileInputRef = useRef(null);
+
+            useEffect(() => {
+                setupPWA();
+                if (!apiKey) setShowSettings(true);
+            }, []);
+
+            const saveApiKey = () => {
+                if (apiKey.trim()) {
+                    localStorage.setItem('gemini_api_key', apiKey.trim());
+                    setShowSettings(false);
+                    setError(null);
+                }
+            };
+
+            const handleImageUpload = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        setSelectedImage(reader.result);
+                        setGeneratedImage(null);
+                    };
+                    reader.readAsDataURL(file);
+                }
+            };
+
+            const handleGenerate = async () => {
+                if (!apiKey) {
+                    setShowSettings(true);
+                    return;
+                }
+                if (!selectedImage) return;
+
+                setIsLoading(true);
+                setError(null);
+                setGeneratedImage(null);
+
+                try {
+                    const ai = new GoogleGenAI({ apiKey: apiKey });
+                    // Clean base64 string
+                    const base64Data = selectedImage.split(',')[1];
+                    const mimeType = selectedImage.split(';')[0].split(':')[1];
+
+                    const result = await ai.models.generateContent({
+                        model: 'gemini-2.5-flash-image',
+                        contents: {
+                            parts: [
+                                {
+                                    inlineData: {
+                                        mimeType: mimeType, 
+                                        data: base64Data
+                                    }
+                                },
+                                {
+                                    text: `Edit this image. ${selectedStyle.prompt} Keep the facial features strictly identical to the original person.`
+                                }
+                            ]
+                        }
+                    });
+                    
+                    // Parse response for image
+                    let foundImage = false;
+                    if (result.candidates && result.candidates[0].content && result.candidates[0].content.parts) {
+                        for (const part of result.candidates[0].content.parts) {
+                            if (part.inlineData) {
+                                const base64String = part.inlineData.data;
+                                setGeneratedImage(`data:image/png;base64,${base64String}`);
+                                foundImage = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (!foundImage) {
+                        throw new Error("AI không trả về hình ảnh. Hãy thử lại hoặc đổi lời nhắc.");
+                    }
+
+                } catch (err) {
+                    console.error(err);
+                    setError(err.message || "Đã xảy ra lỗi khi tạo ảnh.");
+                    if (err.message && err.message.includes('API key')) {
+                        setShowSettings(true);
+                        setError("API Key không hợp lệ hoặc hết hạn.");
+                    }
+                } finally {
+                    setIsLoading(false);
+                }
+            };
+
+            return (
+                <div className="flex flex-col min-h-screen bg-slate-50 font-sans">
+                    {/* Header */}
+                    <header className="bg-white sticky top-0 z-20 border-b border-slate-200 px-4 py-3 flex items-center justify-between shadow-sm">
+                        <div className="flex items-center gap-2">
+                            <div className="bg-blue-600 p-1.5 rounded-lg">
+                                <Wand2 className="w-5 h-5 text-white" />
+                            </div>
+                            <h1 className="font-bold text-lg text-slate-800">Magic Face AI</h1>
+                        </div>
+                        <button 
+                            onClick={() => setShowSettings(true)}
+                            className="p-2 text-slate-600 hover:bg-slate-100 rounded-full transition-colors relative"
+                        >
+                            <Settings className="w-6 h-6" />
+                            {!apiKey && <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse border border-white"></span>}
+                        </button>
+                    </header>
+
+                    {/* Main Content */}
+                    <main className="flex-1 p-4 pb-24 max-w-lg mx-auto w-full">
+                        
+                        {/* 1. Upload Section */}
+                        <div className="mb-6">
+                            <h2 className="text-sm font-semibold text-slate-500 mb-2 uppercase tracking-wide">1. Chọn ảnh chân dung</h2>
+                            <div 
+                                onClick={() => fileInputRef.current?.click()}
+                                className={`relative aspect-[3/4] rounded-2xl border-2 border-dashed transition-all cursor-pointer overflow-hidden flex flex-col items-center justify-center bg-white 
+                                    ${selectedImage ? 'border-blue-500' : 'border-slate-300 hover:border-blue-400'}`}
+                            >
+                                <input 
+                                    type="file" 
+                                    ref={fileInputRef}
+                                    onChange={handleImageUpload}
+                                    accept="image/*"
+                                    className="hidden" 
+                                />
+                                
+                                {selectedImage ? (
+                                    <>
+                                        <img src={selectedImage} alt="Input" className="w-full h-full object-cover" />
+                                        <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                                            <div className="bg-white/90 p-2 rounded-full shadow-lg">
+                                                <Camera className="w-6 h-6 text-slate-700" />
+                                            </div>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div className="text-center p-6">
+                                        <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                                            <ImageIcon className="w-8 h-8 text-blue-500" />
+                                        </div>
+                                        <p className="text-slate-900 font-medium">Chạm để tải ảnh lên</p>
+                                        <p className="text-slate-400 text-xs mt-1">Nên dùng ảnh chụp thẳng mặt</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* 2. Style Selection */}
+                        <div className="mb-8">
+                            <h2 className="text-sm font-semibold text-slate-500 mb-3 uppercase tracking-wide">2. Chọn phong cách</h2>
+                            <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
+                                {STYLES.map((style) => (
+                                    <button
+                                        key={style.id}
+                                        onClick={() => setSelectedStyle(style)}
+                                        className={`flex-shrink-0 flex flex-col items-center gap-2 p-3 rounded-xl min-w-[80px] border transition-all
+                                            ${selectedStyle.id === style.id 
+                                                ? 'bg-blue-50 border-blue-500 shadow-md transform scale-105' 
+                                                : 'bg-white border-slate-200 text-slate-500'}`}
+                                    >
+                                        <div className={`${selectedStyle.id === style.id ? 'text-blue-600' : 'text-slate-400'}`}>
+                                            {style.icon}
+                                        </div>
+                                        <span className={`text-xs font-medium ${selectedStyle.id === style.id ? 'text-blue-700' : 'text-slate-600'}`}>
+                                            {style.name}
+                                        </span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* 3. Action & Result */}
+                        <div className="space-y-4">
+                            <button
+                                onClick={handleGenerate}
+                                disabled={!selectedImage || isLoading || !apiKey}
+                                className={`w-full py-3.5 px-6 rounded-xl font-bold text-white shadow-lg flex items-center justify-center gap-2 transition-all
+                                    ${(!selectedImage || !apiKey) ? 'bg-slate-300 cursor-not-allowed' : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:shadow-blue-200'}`}
+                            >
+                                {isLoading ? (
+                                    <>
+                                        <Loader2 className="w-5 h-5 animate-spin" />
+                                        <span>Đang phù phép...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Wand2 className="w-5 h-5" />
+                                        <span>Tạo ảnh ngay</span>
+                                    </>
+                                )}
+                            </button>
+
+                            {error && (
+                                <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg flex items-start gap-2 border border-red-100">
+                                    <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                                    <span>{error}</span>
+                                </div>
+                            )}
+
+                            {isLoading && (
+                                <div className="relative aspect-[3/4] bg-slate-100 rounded-2xl overflow-hidden border border-slate-200">
+                                    <div className="scan-line z-10"></div>
+                                    <div className="absolute inset-0 flex items-center justify-center flex-col gap-3">
+                                        <img src={selectedImage} className="w-full h-full object-cover opacity-50 blur-sm" />
+                                        <div className="absolute inset-0 flex items-center justify-center bg-black/10">
+                                            <div className="bg-white/90 backdrop-blur px-4 py-2 rounded-full text-xs font-medium text-blue-600 shadow-sm">
+                                                AI đang xử lý khuôn mặt...
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {generatedImage && !isLoading && (
+                                <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                    <div className="relative aspect-square rounded-2xl overflow-hidden shadow-2xl border-4 border-white mb-3">
+                                        <img src={generatedImage} alt="Generated" className="w-full h-full object-cover" />
+                                        <div className="absolute top-2 right-2 bg-green-500 text-white text-[10px] font-bold px-2 py-1 rounded-full shadow-sm">
+                                            AI Generated
+                                        </div>
+                                    </div>
+                                    <a 
+                                        href={generatedImage} 
+                                        download={`MagicFace_${selectedStyle.id}.png`}
+                                        className="w-full flex items-center justify-center gap-2 bg-slate-800 text-white font-medium py-3 rounded-xl hover:bg-slate-900 transition-colors"
+                                    >
+                                        <Download className="w-4 h-4" />
+                                        Tải ảnh về
+                                    </a>
+                                </div>
+                            )}
+                        </div>
+                    </main>
+
+                    {/* Footer - Share App */}
+                    <div className="bg-slate-50 p-6 text-center border-t border-slate-200">
+                        <button 
+                            onClick={shareAsAPK}
+                            className="text-blue-600 text-sm font-medium flex items-center justify-center gap-2 mx-auto hover:underline"
+                        >
+                            <Share2 className="w-4 h-4" />
+                            Chia sẻ ứng dụng (APK)
+                        </button>
+                        <p className="text-slate-400 text-[10px] mt-2">Phiên bản 1.0.0 • Medical Grade SOP</p>
+                    </div>
+
+                    {/* Settings Modal (BYOK) */}
+                    {showSettings && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+                            <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl">
+                                <div className="bg-slate-50 px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                                    <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                                        <Key className="w-4 h-4 text-orange-500" />
+                                        Cấu hình API Key
+                                    </h3>
+                                    {apiKey && (
+                                        <button onClick={() => setShowSettings(false)} className="text-slate-400 hover:text-slate-600">✕</button>
+                                    )}
+                                </div>
+                                <div className="p-6 space-y-4">
+                                    <p className="text-sm text-slate-600">
+                                        Ứng dụng yêu cầu <b>Gemini API Key</b> để hoạt động. Key của bạn được lưu an toàn trên trình duyệt.
+                                    </p>
+                                    <div>
+                                        <label className="block text-xs font-semibold text-slate-500 mb-1 uppercase">Gemini API Key</label>
+                                        <div className="relative">
+                                            <input 
+                                                type="password" 
+                                                value={apiKey}
+                                                onChange={(e) => setApiKey(e.target.value)}
+                                                placeholder="dán key bắt đầu bằng AIza..."
+                                                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-sm"
+                                            />
+                                            <Key className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+                                        </div>
+                                    </div>
+                                    <button 
+                                        onClick={saveApiKey}
+                                        disabled={!apiKey}
+                                        className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl transition-colors"
+                                    >
+                                        Lưu & Bắt đầu
+                                    </button>
+                                    <div className="flex items-start gap-2 bg-blue-50 p-3 rounded-lg">
+                                        <ShieldCheck className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
+                                        <p className="text-[10px] text-blue-700 leading-tight">
+                                            Chúng tôi không thu thập Key của bạn. Mọi kết nối đều trực tiếp từ máy của bạn đến Google.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const root = createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
 </html>
