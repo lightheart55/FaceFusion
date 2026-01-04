@@ -1,451 +1,921 @@
 <!DOCTYPE html>
-<html lang="vi">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Magic Face AI</title>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#4f46e5" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>EchoScript AI</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+            },
+          },
+        },
+      }
+    </script>
+
+    <!-- Styles -->
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+      
+      body {
+        font-family: 'Inter', sans-serif;
+        user-select: none; /* App-like feel */
+        -webkit-user-select: none;
+        -webkit-tap-highlight-color: transparent;
+        overscroll-behavior-y: none;
+      }
+
+      /* Custom Scrollbar */
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 3px;
+      }
+      .dark ::-webkit-scrollbar-thumb {
+        background: #475569;
+      }
+    </style>
+
+    <!-- Import Map -->
+    <script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@18.2.0",
+    "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+    "lucide-react": "https://esm.sh/lucide-react@0.344.0",
+    "@google/genai": "https://esm.sh/@google/genai@0.1.1",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/"
+  }
+}
+</script>
     
-    <!-- React & ReactDOM (UMD - Global Access) -->
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    
-    <!-- Lucide React (UMD) -->
-    <script src="https://unpkg.com/lucide-react@0.344.0/dist/umd/lucide-react.min.js"></script>
-    
-    <!-- Babel -->
+    <!-- Babel for in-browser JSX compilation -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-    <!-- Import Map for Google GenAI ONLY -->
-    <script type="importmap">
-    {
-        "imports": {
-            "@google/genai": "https://esm.sh/@google/genai@0.0.10"
-        }
-    }
-    </script>
-    
-    <!-- Polyfill for process.env -->
+    <!-- PWA Manifest & Service Worker Injection -->
     <script>
-        window.process = { env: { NODE_ENV: 'production' } };
-    </script>
+      (function() {
+        // 1. Inject Manifest
+        const iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none"><rect width="512" height="512" rx="128" fill="#4F46E5"/><path d="M256 128C220.6 128 192 156.6 192 192V320C192 355.4 220.6 384 256 384C291.4 384 320 355.4 320 320V192C320 156.6 291.4 128 256 128Z" fill="white"/><path d="M384 192V320" stroke="white" stroke-width="32" stroke-linecap="round"/><path d="M128 192V320" stroke="white" stroke-width="32" stroke-linecap="round"/></svg>`;
+        const iconBlob = new Blob([iconSvg], { type: 'image/svg+xml' });
+        const iconUrl = URL.createObjectURL(iconBlob);
 
-    <style>
-        body {
-            -webkit-tap-highlight-color: transparent;
-            -webkit-touch-callout: none;
-            user-select: none;
-        }
-        input, textarea {
-            user-select: text;
-        }
-        .hide-scrollbar::-webkit-scrollbar {
-            display: none;
-        }
-        .hide-scrollbar {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
-        }
-        @keyframes scan {
-            0% { top: 0%; opacity: 0; }
-            50% { opacity: 1; }
-            100% { top: 100%; opacity: 0; }
-        }
-        .scan-line {
-            position: absolute;
-            left: 0;
-            width: 100%;
-            height: 2px;
-            background: #3b82f6;
-            box-shadow: 0 0 10px #3b82f6;
-            animation: scan 2s linear infinite;
-        }
-        #error-overlay {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: #fff;
-            color: #ef4444;
-            padding: 20px;
-            z-index: 9999;
-            white-space: pre-wrap;
-            font-family: monospace;
-            overflow: auto;
-        }
-    </style>
-</head>
-<body class="bg-slate-50 text-slate-900 antialiased min-h-screen pb-safe">
-    <div id="root"></div>
-    <div id="error-overlay"></div>
-
-    <script>
-        window.onerror = function(msg, url, line, col, error) {
-            document.getElementById('error-overlay').style.display = 'block';
-            document.getElementById('error-overlay').innerText += `Error: ${msg}\nLine: ${line}\n`;
+        const manifest = {
+          name: "EchoScript AI",
+          short_name: "EchoScript",
+          start_url: ".",
+          display: "standalone",
+          background_color: "#ffffff",
+          theme_color: "#4f46e5",
+          orientation: "portrait",
+          scope: ".",
+          id: "/",
+          icons: [
+            {
+              src: iconUrl,
+              sizes: "512x512",
+              type: "image/svg+xml",
+              purpose: "any maskable"
+            }
+          ]
         };
-    </script>
-
-    <!-- Main Application Logic -->
-    <script type="text/babel" data-type="module">
-        // Import Google GenAI from ESM
-        import { GoogleGenAI } from "@google/genai";
-
-        // Access UMD Globals
-        const { useState, useEffect, useRef } = React;
-        const { createRoot } = ReactDOM;
         
-        // Destructure Icons from LucideReact global
-        const { 
-            Settings, 
-            Image: ImageIcon, 
-            Wand2, 
-            Download, 
-            Share2, 
-            Key, 
-            Loader2, 
-            Camera, 
-            Stethoscope,
-            ShieldCheck,
-            User,
-            Rocket,
-            AlertCircle,
-            CheckCircle2,
-            Upload
-        } = window.LucideReact;
+        const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
+        const manifestUrl = URL.createObjectURL(manifestBlob);
+        
+        const link = document.createElement('link');
+        link.rel = 'manifest';
+        link.href = manifestUrl;
+        document.head.appendChild(link);
 
-        // --- PWA Setup ---
-        const setupPWA = () => {
-            const manifest = {
-                name: "Magic Face AI",
-                short_name: "MagicFace",
-                start_url: '.',
-                display: 'standalone',
-                background_color: '#f8fafc',
-                theme_color: '#3b82f6',
-                icons: [{ src: 'https://cdn-icons-png.flaticon.com/512/11696/11696683.png', sizes: '192x192', type: 'image/png' }]
-            };
-            const link = document.createElement('link');
-            link.rel = 'manifest';
-            link.href = URL.createObjectURL(new Blob([JSON.stringify(manifest)], { type: 'application/json' }));
-            document.head.appendChild(link);
-        };
-
-        const shareAsAPK = async () => {
-            try {
-                const blob = new Blob([document.documentElement.outerHTML], { type: 'application/vnd.android.package-archive' });
-                const file = new File([blob], `MagicFace_AI.apk`, { type: 'application/vnd.android.package-archive' });
-                if (navigator.share && navigator.canShare({ files: [file] })) {
-                    await navigator.share({ files: [file], title: "Magic Face AI" });
-                } else {
-                    const a = document.createElement('a');
-                    a.href = URL.createObjectURL(blob);
-                    a.download = `MagicFace_AI.apk`;
-                    a.click();
-                }
-            } catch (e) { alert(e.message); }
-        };
-
-        const STYLES = [
-            { id: 'doctor', name: 'Bác sĩ', icon: Stethoscope, prompt: "Make this person look like a professional doctor in a hospital setting. White coat, stethoscope. Photorealistic, 8k." },
-            { id: 'nurse', name: 'Y tá', icon: ShieldCheck, prompt: "Make this person look like a caring nurse in a modern clinic. Scrubs. Photorealistic, 8k." },
-            { id: 'superhero', name: 'Siêu nhân', icon: ShieldCheck, prompt: "Transform into a superhero with a glowing futuristic suit. Epic background. Cinematic lighting." },
-            { id: 'astronaut', name: 'Phi hành gia', icon: Rocket, prompt: "Astronaut wearing a high-tech space suit inside a spaceship. Galaxy background. 8k." },
-            { id: 'cyberpunk', name: 'Cyberpunk', icon: User, prompt: "Cyberpunk character with neon lights, futuristic fashion, night city background." },
-        ];
-
-        const App = () => {
-            const [apiKey, setApiKey] = useState(localStorage.getItem('gemini_api_key') || '');
-            const [showSettings, setShowSettings] = useState(false);
-            const [selectedImage, setSelectedImage] = useState(null);
-            const [generatedImage, setGeneratedImage] = useState(null);
-            const [selectedStyle, setSelectedStyle] = useState(STYLES[0]);
-            const [isLoading, setIsLoading] = useState(false);
-            const [error, setError] = useState(null);
-            const fileInputRef = useRef(null);
-
-            useEffect(() => {
-                setupPWA();
-                if (!apiKey) setShowSettings(true);
-            }, []);
-
-            const saveApiKey = () => {
-                if (apiKey.trim()) {
-                    localStorage.setItem('gemini_api_key', apiKey.trim());
-                    setShowSettings(false);
-                    setError(null);
-                }
-            };
-
-            const handleImageUpload = (e) => {
-                const file = e.target.files[0];
-                if (file) {
-                    const reader = new FileReader();
-                    reader.onloadend = () => {
-                        setSelectedImage(reader.result);
-                        setGeneratedImage(null);
-                        setError(null);
-                    };
-                    reader.readAsDataURL(file);
-                }
-            };
-
-            const handleGenerate = async () => {
-                if (!apiKey) { setShowSettings(true); return; }
-                if (!selectedImage) return;
-
-                setIsLoading(true);
-                setError(null);
-                setGeneratedImage(null);
-
-                try {
-                    const ai = new GoogleGenAI({ apiKey: apiKey });
-                    const base64Data = selectedImage.split(',')[1];
-                    const mimeType = selectedImage.split(';')[0].split(':')[1];
-
-                    const result = await ai.models.generateContent({
-                        model: 'gemini-2.5-flash-image',
-                        contents: {
-                            parts: [
-                                { inlineData: { mimeType, data: base64Data } },
-                                { text: `Edit this image. ${selectedStyle.prompt} Keep the facial features strictly identical to the original person.` }
-                            ]
-                        }
-                    });
-
-                    // Safe extraction logic
-                    const candidate = result.candidates?.[0];
-                    const parts = candidate?.content?.parts;
-                    let foundImage = false;
-                    
-                    if (parts) {
-                        for (const part of parts) {
-                            if (part.inlineData) {
-                                setGeneratedImage(`data:image/png;base64,${part.inlineData.data}`);
-                                foundImage = true;
-                                break;
-                            }
-                        }
-                    }
-
-                    if (!foundImage) throw new Error("AI không trả về hình ảnh. Vui lòng thử lại.");
-
-                } catch (err) {
-                    console.error(err);
-                    setError(err.message || "Lỗi xử lý.");
-                    if (err.message && (err.message.includes('API key') || err.message.includes('403'))) {
-                        setShowSettings(true);
-                        setError("API Key lỗi. Vui lòng kiểm tra lại.");
-                    }
-                } finally {
-                    setIsLoading(false);
-                }
-            };
-
-            return (
-                <div className="flex flex-col min-h-screen bg-slate-50 font-sans">
-                    {/* Header */}
-                    <header className="bg-white sticky top-0 z-20 border-b border-slate-200 px-4 py-3 flex items-center justify-between shadow-sm">
-                        <div className="flex items-center gap-2">
-                            <div className="bg-blue-600 p-1.5 rounded-lg">
-                                <Wand2 className="w-5 h-5 text-white" />
-                            </div>
-                            <h1 className="font-bold text-lg text-slate-800">Magic Face AI</h1>
-                        </div>
-                        <button onClick={() => setShowSettings(true)} className="p-2 text-slate-600 hover:bg-slate-100 rounded-full relative">
-                            <Settings className="w-6 h-6" />
-                            {!apiKey && <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse border border-white"></span>}
-                        </button>
-                    </header>
-
-                    {/* Main Content */}
-                    <main className="flex-1 p-4 pb-24 max-w-lg mx-auto w-full">
-                        
-                        {/* 1. Upload Section */}
-                        <div className="mb-6">
-                            <h2 className="text-sm font-semibold text-slate-500 mb-2 uppercase tracking-wide">1. Chọn ảnh chân dung</h2>
-                            
-                            <div 
-                                onClick={() => fileInputRef.current?.click()}
-                                className={`relative aspect-[3/4] rounded-2xl border-2 border-dashed transition-all cursor-pointer overflow-hidden flex flex-col items-center justify-center bg-white shadow-sm group
-                                    ${selectedImage ? 'border-blue-500' : 'border-slate-300 hover:border-blue-400'}`}
-                            >
-                                <input 
-                                    type="file" 
-                                    ref={fileInputRef}
-                                    onChange={handleImageUpload}
-                                    accept="image/*"
-                                    className="hidden" 
-                                />
-                                
-                                {selectedImage ? (
-                                    <>
-                                        <img src={selectedImage} alt="Input" className="w-full h-full object-cover" />
-                                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <div className="bg-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2">
-                                                <Upload className="w-4 h-4 text-slate-700" />
-                                                <span className="text-sm font-medium">Đổi ảnh khác</span>
-                                            </div>
-                                        </div>
-                                    </>
-                                ) : (
-                                    <div className="text-center p-6">
-                                        <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform">
-                                            <ImageIcon className="w-8 h-8 text-blue-500" />
-                                        </div>
-                                        <p className="text-slate-900 font-bold text-lg">Tải ảnh lên</p>
-                                        <p className="text-slate-400 text-sm mt-1">Chạm vào đây để chọn ảnh từ thư viện</p>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* 2. Style Selection */}
-                        <div className="mb-8">
-                            <h2 className="text-sm font-semibold text-slate-500 mb-3 uppercase tracking-wide">2. Chọn phong cách</h2>
-                            <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
-                                {STYLES.map((style) => {
-                                    const IconComp = style.icon;
-                                    return (
-                                        <button
-                                            key={style.id}
-                                            onClick={() => setSelectedStyle(style)}
-                                            className={`flex-shrink-0 flex flex-col items-center gap-2 p-3 rounded-xl min-w-[84px] border transition-all
-                                                ${selectedStyle.id === style.id 
-                                                    ? 'bg-blue-50 border-blue-500 shadow-md scale-105' 
-                                                    : 'bg-white border-slate-200 text-slate-500 hover:border-blue-200'}`}
-                                        >
-                                            <div className={`${selectedStyle.id === style.id ? 'text-blue-600' : 'text-slate-400'}`}>
-                                                <IconComp size={24} />
-                                            </div>
-                                            <span className={`text-xs font-bold ${selectedStyle.id === style.id ? 'text-blue-700' : 'text-slate-500'}`}>
-                                                {style.name}
-                                            </span>
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </div>
-
-                        {/* 3. Action & Result */}
-                        <div className="space-y-4">
-                            <button
-                                onClick={handleGenerate}
-                                disabled={!selectedImage || isLoading || !apiKey}
-                                className={`w-full py-4 px-6 rounded-xl font-bold text-white shadow-lg flex items-center justify-center gap-2 transition-all active:scale-95
-                                    ${(!selectedImage || !apiKey) ? 'bg-slate-300 cursor-not-allowed shadow-none' : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:shadow-blue-200 hover:brightness-105'}`}
-                            >
-                                {isLoading ? (
-                                    <>
-                                        <Loader2 className="w-5 h-5 animate-spin" />
-                                        <span>Đang phù phép...</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <Wand2 className="w-5 h-5" />
-                                        <span>BIẾN HÌNH NGAY</span>
-                                    </>
-                                )}
-                            </button>
-
-                            {error && (
-                                <div className="p-4 bg-red-50 text-red-600 text-sm rounded-xl flex items-start gap-3 border border-red-100 animate-in slide-in-from-top-2">
-                                    <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
-                                    <span>{error}</span>
-                                </div>
-                            )}
-
-                            {isLoading && (
-                                <div className="relative aspect-[3/4] bg-slate-100 rounded-2xl overflow-hidden border border-slate-200 shadow-inner">
-                                    <div className="scan-line z-10"></div>
-                                    <div className="absolute inset-0 flex items-center justify-center flex-col gap-3">
-                                        {selectedImage && <img src={selectedImage} className="w-full h-full object-cover opacity-30 blur-sm" />}
-                                        <div className="absolute inset-0 flex items-center justify-center">
-                                            <div className="bg-white/90 backdrop-blur px-5 py-2 rounded-full text-sm font-semibold text-blue-600 shadow-lg animate-pulse">
-                                                AI đang vẽ lại...
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {generatedImage && !isLoading && (
-                                <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
-                                    <div className="relative aspect-square rounded-2xl overflow-hidden shadow-2xl border-4 border-white mb-4 group">
-                                        <img src={generatedImage} alt="Generated" className="w-full h-full object-cover" />
-                                        <div className="absolute top-3 right-3 bg-green-500 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1">
-                                            <CheckCircle2 size={12} /> Xong!
-                                        </div>
-                                    </div>
-                                    <a 
-                                        href={generatedImage} 
-                                        download={`MagicFace_${selectedStyle.id}.png`}
-                                        className="w-full flex items-center justify-center gap-2 bg-slate-800 text-white font-bold py-4 rounded-xl hover:bg-slate-900 transition-colors shadow-lg active:scale-95"
-                                    >
-                                        <Download className="w-5 h-5" />
-                                        Tải ảnh về máy
-                                    </a>
-                                </div>
-                            )}
-                        </div>
-                    </main>
-
-                    {/* Footer */}
-                    <div className="bg-slate-50 p-6 text-center border-t border-slate-200">
-                        <button onClick={shareAsAPK} className="text-blue-600 text-sm font-semibold flex items-center justify-center gap-2 mx-auto hover:bg-blue-50 px-4 py-2 rounded-lg transition-colors">
-                            <Share2 className="w-4 h-4" />
-                            Chia sẻ App (Giả lập APK)
-                        </button>
-                    </div>
-
-                    {/* Settings Modal (BYOK) */}
-                    {showSettings && (
-                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-                            <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl scale-100 animate-in zoom-in-95 duration-200">
-                                <div className="bg-slate-50 px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-                                    <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                                        <Key className="w-5 h-5 text-orange-500" />
-                                        Cấu hình API Key
-                                    </h3>
-                                    {apiKey && (
-                                        <button onClick={() => setShowSettings(false)} className="text-slate-400 hover:text-slate-600 p-1">✕</button>
-                                    )}
-                                </div>
-                                <div className="p-6 space-y-5">
-                                    <p className="text-sm text-slate-600 leading-relaxed">
-                                        Để sử dụng, bạn cần nhập <b>Gemini API Key</b> (Google AI Studio). Key được lưu trên máy của bạn.
-                                    </p>
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase">Gemini API Key</label>
-                                        <div className="relative">
-                                            <input 
-                                                type="password" 
-                                                value={apiKey}
-                                                onChange={(e) => setApiKey(e.target.value)}
-                                                placeholder="AIzaSy..."
-                                                className="w-full pl-10 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-sm font-mono"
-                                            />
-                                            <Key className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
-                                        </div>
-                                    </div>
-                                    <button 
-                                        onClick={saveApiKey}
-                                        disabled={!apiKey}
-                                        className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-xl transition-colors shadow-lg shadow-blue-200"
-                                    >
-                                        Lưu & Bắt đầu
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            );
-        };
-
-        const root = createRoot(document.getElementById('root'));
-        root.render(<App />);
+        // 2. Inject Service Worker
+        if ('serviceWorker' in navigator) {
+          const swContent = `
+            self.addEventListener('install', (e) => self.skipWaiting());
+            self.addEventListener('activate', (e) => self.clients.claim());
+            self.addEventListener('fetch', (e) => {}); 
+          `;
+          const swBlob = new Blob([swContent], { type: 'application/javascript' });
+          const swUrl = URL.createObjectURL(swBlob);
+          navigator.serviceWorker.register(swUrl)
+            .then(() => console.log('Service Worker Registered (Runtime Injection)'))
+            .catch(console.error);
+        }
+      })();
     </script>
-</body>
+  </head>
+  <body class="bg-slate-50 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100">
+    <div id="root"></div>
+
+    <script type="text/babel" data-type="module">
+      import React, { useState, useEffect, useRef, useCallback } from 'react';
+      import ReactDOM from 'react-dom/client';
+      import { Mic, Upload, Sparkles, AlertTriangle, Moon, Sun, Square, AlertCircle, UploadCloud, FileAudio, X, User, Clock, Globe, Languages, Smile, Frown, Meh, Share2 } from 'lucide-react';
+      import { GoogleGenAI, Type } from '@google/genai';
+
+      // --- Polyfill for process.env ---
+      if (!window.process) {
+        window.process = { env: { API_KEY: '' } }; // Placeholder
+      }
+
+      // --- TYPES ---
+      const Emotion = {
+        Happy: 'Happy',
+        Sad: 'Sad',
+        Angry: 'Angry',
+        Neutral: 'Neutral'
+      };
+
+      // --- SERVICE: geminiService ---
+      const parseJson = (text) => {
+        try {
+            const cleanText = text.replace(/```json\n|\n```/g, "").trim();
+            return JSON.parse(cleanText);
+        } catch (e) {
+            console.error("Failed to parse JSON response:", e);
+            return [];
+        }
+      };
+
+      const transcribeAudio = async (base64Audio, mimeType) => {
+        if (!window.process.env.API_KEY) {
+          // Warning mainly for development; in production key should be injected or handled
+          console.warn("API Key is missing from process.env.API_KEY");
+        }
+
+        // Initialize AI with key from env
+        const ai = new GoogleGenAI({ apiKey: window.process.env.API_KEY });
+        const modelId = "gemini-3-flash-preview";
+
+        const prompt = `
+          You are an expert audio transcription assistant.
+          Process the provided audio file and generate a detailed transcription.
+          
+          Requirements:
+          1. Identify distinct speakers (e.g., Speaker 1, Speaker 2, or names if context allows).
+          2. Provide accurate timestamps for each segment (Format: MM:SS).
+          3. Detect the primary language of each segment.
+          4. If the segment is in a language different than English, also provide the English translation.
+          5. Identify the primary emotion of the speaker in this segment. You MUST choose exactly one of the following: Happy, Sad, Angry, Neutral.
+          6. Provide a brief summary of the entire audio at the beginning.
+          
+          Output Format: JSON object with the following structure:
+          {
+            "summary": "A brief summary of the conversation...",
+            "segments": [
+              {
+                "speaker": "Speaker 1",
+                "timestamp": "00:00 - 00:15",
+                "content": "Hello, how are you doing today?",
+                "language": "English",
+                "language_code": "en",
+                "translation": "",
+                "emotion": "Happy"
+              },
+              ...
+            ]
+          }
+        `;
+
+        try {
+          const response = await ai.models.generateContent({
+            model: modelId,
+            contents: {
+              parts: [
+                {
+                  inlineData: {
+                    mimeType: mimeType,
+                    data: base64Audio,
+                  },
+                },
+                {
+                  text: prompt,
+                },
+              ],
+            },
+            config: {
+              responseMimeType: "application/json",
+              responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                  summary: {
+                    type: Type.STRING,
+                    description: "A concise summary of the audio content.",
+                  },
+                  segments: {
+                    type: Type.ARRAY,
+                    description: "List of transcribed segments with speaker and timestamp.",
+                    items: {
+                      type: Type.OBJECT,
+                      properties: {
+                        speaker: { type: Type.STRING },
+                        timestamp: { type: Type.STRING },
+                        content: { type: Type.STRING },
+                        language: { type: Type.STRING },
+                        language_code: { type: Type.STRING },
+                        translation:  { type: Type.STRING },
+                        emotion: { 
+                          type: Type.STRING, 
+                          description: "The emotion of the speaker.",
+                          enum: Object.values(Emotion)
+                        },
+                      },
+                      required: ["speaker", "timestamp", "content", "language", "language_code", "emotion"],
+                    },
+                  },
+                },
+                required: ["summary", "segments"],
+              },
+            },
+          });
+
+          const text = response.text;
+          if (!text) throw new Error("No response text received from Gemini.");
+
+          return parseJson(text);
+
+        } catch (error) {
+          console.error("Gemini Transcription Error:", error);
+          throw error;
+        }
+      };
+
+      // --- COMPONENTS ---
+
+      // Button Component
+      const Button = ({ 
+        children, 
+        variant = 'primary', 
+        isLoading, 
+        icon,
+        className = '', 
+        disabled,
+        ...props 
+      }) => {
+        const baseStyles = "flex items-center justify-center px-4 py-2 rounded-lg font-medium transition-all focus:outline-none focus:ring-2 focus:ring-offset-1 dark:focus:ring-offset-slate-900 disabled:opacity-50 disabled:cursor-not-allowed";
+        
+        const variants = {
+          primary: "bg-indigo-600 text-white hover:bg-indigo-700 dark:hover:bg-indigo-500 focus:ring-indigo-500 shadow-md hover:shadow-lg",
+          secondary: "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 focus:ring-slate-300 dark:focus:ring-slate-500 shadow-sm",
+          danger: "bg-red-500 text-white hover:bg-red-600 dark:hover:bg-red-400 focus:ring-red-500 shadow-md",
+          ghost: "bg-transparent text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
+        };
+
+        return (
+          <button
+            className={`${baseStyles} ${variants[variant]} ${className}`}
+            disabled={isLoading || disabled}
+            {...props}
+          >
+            {isLoading ? (
+              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            ) : icon ? (
+              <span className="mr-2">{icon}</span>
+            ) : null}
+            {children}
+          </button>
+        );
+      };
+
+      // AudioRecorder Component
+      const AudioRecorder = ({ onAudioCaptured, disabled }) => {
+        const [isRecording, setIsRecording] = useState(false);
+        const [duration, setDuration] = useState(0);
+        const [error, setError] = useState(null);
+        
+        const mediaRecorderRef = useRef(null);
+        const chunksRef = useRef([]);
+        const timerRef = useRef(null);
+        const streamRef = useRef(null);
+
+        const startRecording = useCallback(async () => {
+          setError(null);
+          try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            streamRef.current = stream;
+            
+            const mediaRecorder = new MediaRecorder(stream);
+            mediaRecorderRef.current = mediaRecorder;
+            chunksRef.current = [];
+
+            mediaRecorder.ondataavailable = (e) => {
+              if (e.data.size > 0) {
+                chunksRef.current.push(e.data);
+              }
+            };
+
+            mediaRecorder.onstop = () => {
+              const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+              const reader = new FileReader();
+              reader.readAsDataURL(blob);
+              reader.onloadend = () => {
+                const base64String = reader.result;
+                const base64 = base64String.split(',')[1];
+                
+                onAudioCaptured({
+                  blob,
+                  base64,
+                  mimeType: 'audio/webm'
+                });
+              };
+              
+              if (streamRef.current) {
+                streamRef.current.getTracks().forEach(track => track.stop());
+                streamRef.current = null;
+              }
+            };
+
+            mediaRecorder.start();
+            setIsRecording(true);
+            
+            const startTime = Date.now();
+            timerRef.current = window.setInterval(() => {
+              setDuration(Math.floor((Date.now() - startTime) / 1000));
+            }, 1000);
+
+          } catch (err) {
+            console.error("Error accessing microphone:", err);
+            setError("Could not access microphone. Please ensure permissions are granted.");
+          }
+        }, [onAudioCaptured]);
+
+        const stopRecording = useCallback(() => {
+          if (mediaRecorderRef.current && isRecording) {
+            mediaRecorderRef.current.stop();
+            setIsRecording(false);
+            if (timerRef.current) {
+              clearInterval(timerRef.current);
+              timerRef.current = null;
+            }
+            setDuration(0);
+          }
+        }, [isRecording]);
+
+        useEffect(() => {
+          return () => {
+            if (timerRef.current) clearInterval(timerRef.current);
+            if (streamRef.current) streamRef.current.getTracks().forEach(track => track.stop());
+          };
+        }, []);
+
+        const formatTime = (seconds) => {
+          const mins = Math.floor(seconds / 60);
+          const secs = seconds % 60;
+          return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        };
+
+        return (
+          <div className="flex flex-col items-center justify-center p-8 bg-white dark:bg-slate-800 border-2 border-dashed border-indigo-100 dark:border-slate-700 rounded-2xl transition-colors duration-300">
+            <div className={`relative flex items-center justify-center w-24 h-24 mb-6 rounded-full transition-all duration-300 ${isRecording ? 'bg-red-50 dark:bg-red-900/20' : 'bg-indigo-50 dark:bg-indigo-900/30'}`}>
+              {isRecording && (
+                <span className="absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-20 animate-ping"></span>
+              )}
+              {isRecording ? (
+                  <div className="text-red-500 dark:text-red-400">
+                      <Mic size={40} className="animate-pulse" />
+                  </div>
+              ) : (
+                  <div className="text-indigo-500 dark:text-indigo-400">
+                      <Mic size={40} />
+                  </div>
+              )}
+            </div>
+
+            <div className="text-center mb-6">
+              {isRecording ? (
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-800 dark:text-white">Recording...</h3>
+                  <p className="text-3xl font-mono text-slate-600 dark:text-slate-300 mt-2">{formatTime(duration)}</p>
+                </div>
+              ) : (
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-800 dark:text-white">Start Recording</h3>
+                  <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Click the microphone to begin</p>
+                </div>
+              )}
+            </div>
+
+            {error && (
+              <div className="flex items-center text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-4 py-2 rounded-lg mb-4 text-sm">
+                <AlertCircle size={16} className="mr-2" />
+                {error}
+              </div>
+            )}
+
+            {!isRecording ? (
+              <Button 
+                onClick={startRecording} 
+                disabled={disabled}
+                className="w-full max-w-xs"
+              >
+                Start Recording
+              </Button>
+            ) : (
+              <Button 
+                onClick={stopRecording} 
+                variant="danger"
+                icon={<Square size={16} fill="currentColor" />}
+                className="w-full max-w-xs"
+              >
+                Stop Recording
+              </Button>
+            )}
+          </div>
+        );
+      };
+
+      // FileUploader Component
+      const FileUploader = ({ onFileSelected, disabled }) => {
+        const [dragActive, setDragActive] = useState(false);
+        const [fileName, setFileName] = useState(null);
+        const inputRef = useRef(null);
+
+        const processFile = (file) => {
+          if (!file.type.startsWith('audio/') && !file.type.startsWith('video/')) {
+            alert("Please upload a valid audio file.");
+            return;
+          }
+
+          setFileName(file.name);
+
+          const reader = new FileReader();
+          reader.readAsDataURL(file);
+          reader.onloadend = () => {
+            const base64String = reader.result;
+            const base64 = base64String.split(',')[1];
+            
+            onFileSelected({
+              blob: file,
+              base64,
+              mimeType: file.type
+            });
+          };
+        };
+
+        const handleDrag = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (e.type === "dragenter" || e.type === "dragover") {
+            setDragActive(true);
+          } else if (e.type === "dragleave") {
+            setDragActive(false);
+          }
+        };
+
+        const handleDrop = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setDragActive(false);
+          if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+            processFile(e.dataTransfer.files[0]);
+          }
+        };
+
+        const handleChange = (e) => {
+          if (e.target.files && e.target.files[0]) {
+            processFile(e.target.files[0]);
+          }
+        };
+
+        const handleClear = () => {
+          setFileName(null);
+          if (inputRef.current) inputRef.current.value = "";
+        };
+
+        const handleKeyDown = (e) => {
+          if (disabled) return;
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            inputRef.current?.click();
+          }
+        };
+
+        return (
+          <div className="w-full">
+            <input
+              ref={inputRef}
+              type="file"
+              className="hidden"
+              accept="audio/*,video/*"
+              onChange={handleChange}
+              disabled={disabled}
+            />
+            
+            {!fileName ? (
+              <div
+                role="button"
+                tabIndex={disabled ? -1 : 0}
+                aria-label="Upload audio file"
+                className={`flex flex-col items-center justify-center p-10 border-2 border-dashed rounded-2xl transition-all outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-slate-900 ${
+                  dragActive 
+                    ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20" 
+                    : "border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-indigo-400 dark:hover:border-indigo-500 hover:bg-slate-50 dark:hover:bg-slate-800/80"
+                } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                onDragEnter={handleDrag}
+                onDragLeave={handleDrag}
+                onDragOver={handleDrag}
+                onDrop={handleDrop}
+                onClick={() => !disabled && inputRef.current?.click()}
+                onKeyDown={handleKeyDown}
+              >
+                <div className="p-4 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-500 dark:text-indigo-400 rounded-full mb-4">
+                  <UploadCloud size={32} />
+                </div>
+                <p className="text-lg font-medium text-slate-700 dark:text-slate-200 mb-1">
+                  Click to upload or drag & drop
+                </p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  MP3, WAV, M4A, WEBM (Max 20MB)
+                </p>
+              </div>
+            ) : (
+              <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6 flex items-center justify-between shadow-sm transition-colors duration-300">
+                <div className="flex items-center space-x-4">
+                  <div className="p-3 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 rounded-lg">
+                    <FileAudio size={24} />
+                  </div>
+                  <div>
+                    <p className="font-medium text-slate-800 dark:text-slate-200 truncate max-w-[200px] sm:max-w-md">{fileName}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">Ready to transcribe</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={handleClear}
+                  className="p-2 text-slate-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-red-500"
+                  disabled={disabled}
+                  aria-label="Remove file"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            )}
+          </div>
+        );
+      };
+
+      // TranscriptionDisplay Component
+      const TranscriptionDisplay = ({ data }) => {
+        const getEmotionBadge = (emotion) => {
+          if (!emotion) return null;
+
+          switch (emotion) {
+            case Emotion.Happy:
+              return (
+                <div className="flex items-center bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 px-2 py-1 rounded border border-green-100 dark:border-green-800">
+                  <Smile size={14} className="mr-1.5" />
+                  {emotion}
+                </div>
+              );
+            case Emotion.Sad:
+              return (
+                <div className="flex items-center bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-1 rounded border border-blue-100 dark:border-blue-800">
+                  <Frown size={14} className="mr-1.5" />
+                  {emotion}
+                </div>
+              );
+            case Emotion.Angry:
+              return (
+                <div className="flex items-center bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 px-2 py-1 rounded border border-red-100 dark:border-red-800">
+                  <AlertCircle size={14} className="mr-1.5" />
+                  {emotion}
+                </div>
+              );
+            case Emotion.Neutral:
+            default:
+              return (
+                <div className="flex items-center bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-2 py-1 rounded border border-slate-200 dark:border-slate-600">
+                  <Meh size={14} className="mr-1.5" />
+                  {emotion}
+                </div>
+              );
+          }
+        };
+
+        return (
+          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {/* Summary Section */}
+            <div className="bg-gradient-to-br from-indigo-50 to-white dark:from-slate-800 dark:to-slate-900 border border-indigo-100 dark:border-slate-700 rounded-2xl p-6 shadow-sm transition-colors duration-300">
+              <h2 className="text-lg font-semibold text-indigo-900 dark:text-indigo-200 mb-3">Summary</h2>
+              <p className="text-slate-700 dark:text-slate-300 leading-relaxed">{data.summary}</p>
+            </div>
+
+            {/* Segments Section */}
+            <div className="space-y-4">
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-white px-1">Detailed Transcript</h2>
+              
+              {data.segments.map((segment, index) => (
+                <div 
+                  key={index} 
+                  className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-5 hover:shadow-md transition-all duration-300"
+                >
+                  <div className="flex flex-wrap items-center gap-3 mb-3 text-sm text-slate-500 dark:text-slate-400">
+                    <div className="flex items-center font-semibold text-indigo-600 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-900/40 px-2 py-1 rounded">
+                      <User size={14} className="mr-1.5" />
+                      {segment.speaker}
+                    </div>
+                    <div className="flex items-center bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded">
+                      <Clock size={14} className="mr-1.5" />
+                      {segment.timestamp}
+                    </div>
+                    <div className="flex items-center bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded">
+                      <Globe size={14} className="mr-1.5" />
+                      {segment.language}
+                    </div>
+                    {segment.emotion && getEmotionBadge(segment.emotion)}
+                  </div>
+                  
+                  <p className="text-slate-800 dark:text-slate-200 leading-relaxed whitespace-pre-wrap">
+                    {segment.content}
+                  </p>
+
+                  {segment.translation && (
+                    <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/30 -mx-5 -mb-5 px-5 pb-5 rounded-b-xl">
+                       <div className="flex items-center text-xs font-semibold text-indigo-600 dark:text-indigo-300 mb-1.5 uppercase tracking-wide pt-2">
+                          <Languages size={14} className="mr-1.5" />
+                          English Translation
+                       </div>
+                       <p className="text-slate-600 dark:text-slate-400 italic leading-relaxed">
+                         {segment.translation}
+                       </p>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      };
+
+      // --- MAIN APP ---
+      function App() {
+        const [mode, setMode] = useState('record');
+        const [status, setStatus] = useState('idle');
+        const [audioData, setAudioData] = useState(null);
+        const [result, setResult] = useState(null);
+        const [error, setError] = useState(null);
+        
+        // Dark Mode
+        const [isDarkMode, setIsDarkMode] = useState(() => {
+          if (typeof window !== 'undefined') {
+            return window.matchMedia('(prefers-color-scheme: dark)').matches;
+          }
+          return false;
+        });
+
+        useEffect(() => {
+          if (isDarkMode) {
+            document.documentElement.classList.add('dark');
+            // Update Meta Theme Color
+            document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#0f172a');
+          } else {
+            document.documentElement.classList.remove('dark');
+            document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#ffffff');
+          }
+        }, [isDarkMode]);
+
+        const toggleDarkMode = () => setIsDarkMode(!isDarkMode);
+
+        const handleAudioReady = (data) => {
+          setAudioData(data);
+          setError(null);
+          setResult(null); 
+        };
+
+        const handleTranscribe = async () => {
+          if (!audioData) return;
+          setStatus('processing');
+          setError(null);
+          try {
+            const data = await transcribeAudio(audioData.base64, audioData.mimeType);
+            setResult(data);
+            setStatus('success');
+          } catch (err) {
+            console.error(err);
+            setError("An error occurred during transcription. Please try again.");
+            setStatus('error');
+          }
+        };
+
+        const handleReset = () => {
+          setAudioData(null);
+          setResult(null);
+          setStatus('idle');
+          setError(null);
+        };
+
+        // --- Share Functionality (APK Simulation) ---
+        const handleShareApp = async () => {
+          try {
+            // We'll just grab the current HTML file to share as an "APK"
+            const htmlContent = document.documentElement.outerHTML;
+            // Trick the intent with mime type and extension
+            const blob = new Blob([htmlContent], { type: 'application/vnd.android.package-archive' });
+            const file = new File([blob], "EchoScript_Installer.apk", { type: 'application/vnd.android.package-archive' });
+            
+            if (navigator.share) {
+              await navigator.share({
+                files: [file],
+                title: 'Install EchoScript AI',
+                text: 'Turn your audio into accurate text with speaker diarization.'
+              });
+            } else {
+              // Fallback for desktop/unsupported browsers
+              const a = document.createElement('a');
+              a.href = URL.createObjectURL(blob);
+              a.download = "EchoScript_Installer.apk";
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+            }
+          } catch (e) {
+            console.log("Share cancelled or failed", e);
+          }
+        };
+
+        return (
+          <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 pb-20 transition-colors duration-300">
+            {/* Header */}
+            <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-10 transition-colors duration-300">
+              <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <div className="bg-indigo-600 p-2 rounded-lg text-white shadow-lg shadow-indigo-500/30">
+                    <Sparkles size={20} />
+                  </div>
+                  <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-violet-600 dark:from-indigo-400 dark:to-violet-400">
+                    EchoScript AI
+                  </h1>
+                </div>
+                <div className="flex items-center space-x-2">
+                   <button
+                    onClick={handleShareApp}
+                    className="p-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    aria-label="Share App"
+                    title="Share App"
+                  >
+                    <Share2 size={20} />
+                  </button>
+
+                  <button
+                    onClick={toggleDarkMode}
+                    className="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    aria-label="Toggle Dark Mode"
+                  >
+                    {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
+                  </button>
+                </div>
+              </div>
+            </header>
+
+            <main className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
+              
+              {/* Intro */}
+              <div className="text-center mb-10">
+                <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-4">
+                  Turn your audio into accurate text
+                </h2>
+                <p className="text-lg text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
+                  Upload a file or record directly to get speaker-identified transcripts with timestamps and language detection instantly.
+                </p>
+              </div>
+
+              {/* Status Error */}
+              {status === 'error' && error && (
+                <div className="mb-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 flex items-start text-red-700 dark:text-red-400">
+                  <AlertTriangle className="mr-3 flex-shrink-0 mt-0.5" size={20} />
+                  <p>{error}</p>
+                </div>
+              )}
+
+              {/* Input Selection Tabs */}
+              {!result && (
+                  <div className="bg-white dark:bg-slate-900 p-1 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 inline-flex mb-8 w-full sm:w-auto transition-colors duration-300">
+                  <button
+                      onClick={() => { setMode('record'); handleReset(); }}
+                      className={`flex-1 sm:flex-none flex items-center justify-center px-6 py-2.5 rounded-lg text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-offset-1 dark:focus:ring-offset-slate-900 focus:ring-indigo-500 ${
+                      mode === 'record' 
+                          ? 'bg-indigo-600 text-white shadow-sm' 
+                          : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
+                      }`}
+                      disabled={status === 'processing'}
+                  >
+                      <Mic size={16} className="mr-2" />
+                      Record Audio
+                  </button>
+                  <button
+                      onClick={() => { setMode('upload'); handleReset(); }}
+                      className={`flex-1 sm:flex-none flex items-center justify-center px-6 py-2.5 rounded-lg text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-offset-1 dark:focus:ring-offset-slate-900 focus:ring-indigo-500 ${
+                      mode === 'upload' 
+                          ? 'bg-indigo-600 text-white shadow-sm' 
+                          : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
+                      }`}
+                      disabled={status === 'processing'}
+                  >
+                      <Upload size={16} className="mr-2" />
+                      Upload File
+                  </button>
+                  </div>
+              )}
+
+              {/* Main Content Area */}
+              <div className="space-y-8">
+                
+                {/* Input Section */}
+                {!result && status !== 'processing' && (
+                  <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 p-6 sm:p-8 transition-colors duration-300">
+                    {mode === 'record' ? (
+                      <AudioRecorder onAudioCaptured={handleAudioReady} disabled={status === 'processing'} />
+                    ) : (
+                      <FileUploader onFileSelected={handleAudioReady} disabled={status === 'processing'} />
+                    )}
+
+                    {audioData && (
+                      <div className="mt-6 flex justify-end pt-6 border-t border-slate-100 dark:border-slate-800">
+                        <Button 
+                          onClick={handleTranscribe} 
+                          isLoading={status === 'processing'}
+                          className="w-full sm:w-auto"
+                          icon={<Sparkles size={16} />}
+                        >
+                          Generate Transcript
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Processing State */}
+                {status === 'processing' && (
+                  <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 p-12 text-center transition-colors duration-300">
+                    <div className="flex justify-center mb-6">
+                       <div className="relative">
+                          <div className="w-16 h-16 border-4 border-indigo-100 dark:border-indigo-900 border-t-indigo-600 dark:border-t-indigo-500 rounded-full animate-spin"></div>
+                          <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center">
+                              <Sparkles size={24} className="text-indigo-600 dark:text-indigo-400 animate-pulse" />
+                          </div>
+                       </div>
+                    </div>
+                    <h3 className="text-xl font-semibold text-slate-900 dark:text-white mb-2">Analyzing Audio...</h3>
+                    <p className="text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
+                      Gemini is identifying speakers, detecting languages, and generating your transcript. This usually takes just a few seconds.
+                    </p>
+                  </div>
+                )}
+
+                {/* Results Section */}
+                {result && status === 'success' && (
+                  <div>
+                      <div className="flex justify-between items-center mb-6">
+                          <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Transcription Results</h2>
+                          <Button onClick={handleReset} variant="secondary">Start Over</Button>
+                      </div>
+                      <TranscriptionDisplay data={result} />
+                  </div>
+                )}
+              </div>
+
+              {/* Disclaimer */}
+              <div className="mt-16 text-center text-xs text-slate-500 dark:text-slate-400 max-w-2xl mx-auto leading-relaxed border-t border-slate-200 dark:border-slate-800 pt-8 transition-colors duration-300">
+                  <p className="mb-2">
+                  By using this feature, you confirm that you have the necessary rights to any content that you upload. Your use of this generative AI service is subject to our <a href="https://policies.google.com/terms/generative-ai/use-policy" target="_blank" rel="noopener noreferrer" className="underline hover:text-slate-700 dark:hover:text-slate-300 transition-colors">Prohibited Use Policy</a>.
+                  </p>
+              </div>
+
+            </main>
+          </div>
+        );
+      }
+
+      const rootElement = document.getElementById('root');
+      if (!rootElement) {
+        throw new Error("Could not find root element to mount to");
+      }
+
+      const root = ReactDOM.createRoot(rootElement);
+      root.render(
+        <React.StrictMode>
+          <App />
+        </React.StrictMode>
+      );
+    </script>
+  </body>
 </html>
