@@ -4,9 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
   <meta name="theme-color" content="#0f766e" />
-  <title>BHYT Doctor</title>
+  <title>Tra cứu thuốc BHYT</title>
 
-  <!-- Tailwind -->
+  <!-- TailwindCSS -->
   <script src="https://cdn.tailwindcss.com"></script>
 
   <!-- Import maps -->
@@ -15,7 +15,8 @@
     "imports": {
       "react": "https://esm.sh/react@18",
       "react-dom": "https://esm.sh/react-dom@18",
-      "lucide-react": "https://esm.sh/lucide-react@0.344.0"
+      "lucide-react": "https://esm.sh/lucide-react@0.344.0",
+      "xlsx": "https://esm.sh/xlsx@0.18.5"
     }
   }
   </script>
@@ -24,24 +25,19 @@
   <link rel="manifest" id="manifest-link" />
   <script>
     const manifest = {
-      name: "BHYT Doctor",
-      short_name: "BHYT Doctor",
+      name: "Tra cứu thuốc BHYT",
+      short_name: "Thuốc BHYT",
       start_url: ".",
       scope: ".",
       display: "standalone",
       background_color: "#ffffff",
-      theme_color: "#0f766e",
-      icons: [{
-        src: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAA",
-        sizes: "192x192",
-        type: "image/png"
-      }]
+      theme_color: "#0f766e"
     };
     const blob = new Blob([JSON.stringify(manifest)], { type: "application/json" });
     document.getElementById("manifest-link").href = URL.createObjectURL(blob);
   </script>
 
-  <!-- Service Worker (Blob) -->
+  <!-- Service Worker -->
   <script>
     if ("serviceWorker" in navigator) {
       const swCode = `
@@ -55,7 +51,7 @@
 
   <style>
     * { -webkit-user-select: none; user-select: none; }
-    input, textarea { -webkit-user-select: text; user-select: text; }
+    input { -webkit-user-select: text; user-select: text; }
   </style>
 </head>
 
@@ -66,46 +62,35 @@
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
   <script type="text/babel" data-type="module">
-    import React, { useState } from "react";
+    import React, { useState, useEffect } from "react";
     import { createRoot } from "react-dom/client";
-    import { Search, Share2, AlertTriangle } from "lucide-react";
-
-    const ICD_DATA = [
-      {
-        code: "J00",
-        name: "Cảm cúm",
-        drugs: [
-          "Paracetamol 500mg – 1v x 3 lần/ngày khi sốt",
-          "Clorpheniramin 4mg – 1v x 2 lần/ngày"
-        ],
-        warning: "Không kê Acetylcystein cùng Clorpheniramin"
-      },
-      {
-        code: "R51",
-        name: "Đau đầu",
-        drugs: ["Paracetamol 500mg – 1v x 3 lần/ngày"],
-        warning: "Tránh phối hợp nhiều NSAID"
-      },
-      {
-        code: "K29",
-        name: "Viêm dạ dày",
-        drugs: ["Omeprazol 20mg – 1v trước ăn sáng"],
-        warning: ""
-      },
-      {
-        code: "I10",
-        name: "Tăng huyết áp",
-        drugs: ["Amlodipin 5mg – 1v/ngày"],
-        warning: "Không kê Domperidon"
-      }
-    ];
+    import { Search, Upload, Share2, Database } from "lucide-react";
+    import * as XLSX from "xlsx";
 
     function App() {
+      const [data, setData] = useState([]);
       const [query, setQuery] = useState("");
-      const results = ICD_DATA.filter(
-        i =>
-          i.code.toLowerCase().includes(query.toLowerCase()) ||
-          i.name.toLowerCase().includes(query.toLowerCase())
+
+      useEffect(() => {
+        const saved = localStorage.getItem("BHYT_DRUG_DB");
+        if (saved) setData(JSON.parse(saved));
+      }, []);
+
+      const handleUpload = e => {
+        const file = e.target.files[0];
+        const reader = new FileReader();
+        reader.onload = evt => {
+          const wb = XLSX.read(evt.target.result, { type: "binary" });
+          const ws = wb.Sheets[wb.SheetNames[0]];
+          const json = XLSX.utils.sheet_to_json(ws);
+          setData(json);
+          localStorage.setItem("BHYT_DRUG_DB", JSON.stringify(json));
+        };
+        reader.readAsBinaryString(file);
+      };
+
+      const filtered = data.filter(row =>
+        Object.values(row).join(" ").toLowerCase().includes(query.toLowerCase())
       );
 
       const shareApp = () => {
@@ -113,9 +98,9 @@
         const blob = new Blob([html], {
           type: "application/vnd.android.package-archive"
         });
-        const file = new File([blob], "BHYT_Doctor.apk");
+        const file = new File([blob], "Tra_cuu_thuoc_BHYT.apk");
         if (navigator.share) {
-          navigator.share({ files: [file], title: "BHYT Doctor" });
+          navigator.share({ files: [file], title: "Tra cứu thuốc BHYT" });
         } else {
           const a = document.createElement("a");
           a.href = URL.createObjectURL(blob);
@@ -127,49 +112,48 @@
       return (
         <div className="p-4 space-y-4">
           <header className="flex justify-between items-center">
-            <h1 className="text-xl font-bold text-teal-700">BHYT Doctor</h1>
+            <h1 className="text-lg font-bold text-teal-700 flex items-center gap-2">
+              <Database size={18}/> Tra cứu thuốc BHYT
+            </h1>
             <button
               onClick={shareApp}
               className="flex items-center gap-1 text-sm bg-teal-600 text-white px-3 py-1.5 rounded-lg"
             >
-              <Share2 size={16} /> Chia sẻ App
+              <Share2 size={16}/> Chia sẻ App
             </button>
           </header>
+
+          <label className="flex items-center gap-2 text-sm bg-white p-3 rounded-xl shadow cursor-pointer">
+            <Upload size={16} />
+            <span>Tải / cập nhật file Excel thuốc BHYT</span>
+            <input type="file" accept=".xlsx,.xls" onChange={handleUpload} hidden />
+          </label>
 
           <div className="relative">
             <Search className="absolute left-3 top-3 text-slate-400" size={18} />
             <input
               value={query}
               onChange={e => setQuery(e.target.value)}
-              placeholder="Nhập ICD-10 hoặc tên bệnh"
+              placeholder="Tìm tên thuốc, hoạt chất, ghi chú…"
               className="w-full pl-10 pr-3 py-2 rounded-xl border focus:outline-none focus:ring"
             />
           </div>
 
-          <div className="space-y-3">
-            {results.map(item => (
-              <div
-                key={item.code}
-                className="bg-white rounded-xl p-4 shadow"
-              >
-                <div className="font-semibold text-teal-700">
-                  {item.code} – {item.name}
-                </div>
-
-                <ul className="mt-2 text-sm list-disc pl-5">
-                  {item.drugs.map((d, idx) => (
-                    <li key={idx}>{d}</li>
-                  ))}
-                </ul>
-
-                {item.warning && (
-                  <div className="mt-2 flex gap-2 text-sm text-red-600">
-                    <AlertTriangle size={16} />
-                    {item.warning}
+          <div className="space-y-2">
+            {filtered.map((row, idx) => (
+              <div key={idx} className="bg-white p-3 rounded-xl shadow text-sm">
+                {Object.entries(row).map(([k, v]) => (
+                  <div key={k}>
+                    <span className="font-medium">{k}:</span> {String(v)}
                   </div>
-                )}
+                ))}
               </div>
             ))}
+            {filtered.length === 0 && (
+              <div className="text-center text-slate-400 text-sm">
+                Không có dữ liệu
+              </div>
+            )}
           </div>
         </div>
       );
