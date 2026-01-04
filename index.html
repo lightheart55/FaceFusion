@@ -2,696 +2,239 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ICD-10 Quick Reference - Tra cứu mã bệnh tức thì</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🩺</text></svg>">
-    
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        medical: {
-                            blue: '#1e40af',
-                            green: '#059669',
-                            red: '#dc2626'
-                        }
-                    }
-                }
-            }
-        }
-    </script>
-    
-    <!-- Import Maps for React & Libraries -->
-    <script type="importmap">
-    {
-        "imports": {
-            "react": "https://esm.sh/react@18.2.0",
-            "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
-            "lucide-react": "https://esm.sh/lucide-react@0.309.0",
-            "fuse.js": "https://esm.sh/fuse.js@7.0.0"
-        }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <meta name="theme-color" content="#0f766e" />
+  <title>ICD-10 Quick Reference</title>
+
+  <!-- TailwindCSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Import maps -->
+  <script type="importmap">
+  {
+    "imports": {
+      "react": "https://esm.sh/react@18",
+      "react-dom": "https://esm.sh/react-dom@18",
+      "lucide-react": "https://esm.sh/lucide-react@0.344.0"
     }
-    </script>
-    
-    <!-- Service Worker Registration Script -->
-    <script>
-    (function() {
-        // Dynamic Manifest
-        const manifest = {
-            "name": "ICD-10 Quick Reference",
-            "short_name": "ICD-10",
-            "description": "Tra cứu mã bệnh ICD-10 nhanh chóng, chính xác",
-            "start_url": ".",
-            "display": "standalone",
-            "background_color": "#ffffff",
-            "theme_color": "#1e40af",
-            "icons": [
-                {
-                    "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231e40af'/><text x='50' y='70' font-family='Arial' font-size='60' text-anchor='middle' fill='white'>🩺</text></svg>",
-                    "sizes": "192x192",
-                    "type": "image/svg+xml"
-                }
-            ]
-        };
-        
-        const blob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
-        const manifestURL = URL.createObjectURL(blob);
-        
-        const link = document.createElement('link');
-        link.rel = 'manifest';
-        link.href = manifestURL;
-        document.head.appendChild(link);
-        
-        // Virtual Service Worker
-        if ('serviceWorker' in navigator) {
-            const swCode = `
-                self.addEventListener('install', (event) => {
-                    self.skipWaiting();
-                });
-                self.addEventListener('fetch', (event) => {
-                    event.respondWith(fetch(event.request));
-                });
-            `;
-            const swBlob = new Blob([swCode], {type: 'application/javascript'});
-            const swURL = URL.createObjectURL(swBlob);
-            
-            navigator.serviceWorker.register(swURL, {scope: './'})
-                .catch(console.error);
-        }
-    })();
-    </script>
-    
-    <style>
-        * {
-            -webkit-tap-highlight-color: transparent;
-            -webkit-user-select: none;
-            user-select: none;
-        }
-        input, textarea {
-            -webkit-user-select: text;
-            user-select: text;
-        }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-        }
-        .scrollbar-hide {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
-        }
-        .scrollbar-hide::-webkit-scrollbar {
-            display: none;
-        }
-        @supports (-webkit-touch-callout: none) {
-            .min-h-screen-ios {
-                min-height: -webkit-fill-available;
-            }
-        }
-    </style>
+  }
+  </script>
+
+  <!-- Dynamic Manifest -->
+  <link rel="manifest" id="manifest-link" />
+  <script>
+    const manifest = {
+      name: "ICD-10 Quick Reference",
+      short_name: "ICD-10 QR",
+      id: ".",
+      start_url: ".",
+      scope: ".",
+      display: "standalone",
+      background_color: "#ffffff",
+      theme_color: "#0f766e"
+    };
+    const blob = new Blob([JSON.stringify(manifest)], { type: "application/json" });
+    document.getElementById("manifest-link").href = URL.createObjectURL(blob);
+  </script>
+
+  <!-- Service Worker (Blob) -->
+  <script>
+    if ("serviceWorker" in navigator) {
+      const swCode = `
+        self.addEventListener('install', e => self.skipWaiting());
+        self.addEventListener('fetch', e => {});
+      `;
+      const swBlob = new Blob([swCode], { type: "text/javascript" });
+      navigator.serviceWorker.register(URL.createObjectURL(swBlob));
+    }
+  </script>
+
+  <style>
+    * { -webkit-user-select: none; user-select: none; }
+    input { -webkit-user-select: text; user-select: text; }
+  </style>
 </head>
-<body class="bg-gray-50 min-h-screen min-h-screen-ios">
-    <div id="root" class="max-w-md mx-auto"></div>
-    
-    <script type="text/babel" data-type="module">
-    import React, { useState, useEffect, useMemo, useCallback } from 'react';
-    import { createRoot } from 'react-dom/client';
-    import { Search, Heart, Clock, BookOpen, Copy, Star, Share2, Download, X, ChevronRight, Filter, Bookmark } from 'lucide-react';
-    import Fuse from 'fuse.js';
-    
-    // ========== ICD-10 DATABASE ==========
-    const icd10Database = [
-        // Chương X: Bệnh hệ hô hấp (J00-J99)
-        { code: 'J00', name_vi: 'Cảm lạnh thông thường', name_en: 'Common cold', chapter: 'X', chapter_name: 'Bệnh hệ hô hấp', description: 'Viêm mũi họng cấp do virus' },
-        { code: 'J06', name_vi: 'Viêm họng cấp', name_en: 'Acute pharyngitis', chapter: 'X', chapter_name: 'Bệnh hệ hô hấp', description: 'Viêm cấp tính vùng họng' },
-        { code: 'J20', name_vi: 'Viêm phế quản cấp', name_en: 'Acute bronchitis', chapter: 'X', chapter_name: 'Bệnh hệ hô hấp', description: 'Viêm cấp tính phế quản' },
-        { code: 'J30.3', name_vi: 'Viêm mũi dị ứng', name_en: 'Allergic rhinitis', chapter: 'X', chapter_name: 'Bệnh hệ hô hấp', description: 'Viêm mũi do dị ứng' },
-        
-        // Chương I: Bệnh nhiễm trùng (A00-B99)
-        { code: 'A09', name_vi: 'Viêm dạ dày ruột do nhiễm khuẩn', name_en: 'Infectious gastroenteritis', chapter: 'I', chapter_name: 'Bệnh nhiễm trùng', description: 'Tiêu chảy nhiễm trùng' },
-        { code: 'B34.9', name_vi: 'Nhiễm virus không xác định', name_en: 'Viral infection, unspecified', chapter: 'I', chapter_name: 'Bệnh nhiễm trùng' },
-        
-        // Chương IX: Bệnh hệ tuần hoàn (I00-I99)
-        { code: 'I10', name_vi: 'Tăng huyết áp nguyên phát', name_en: 'Essential hypertension', chapter: 'IX', chapter_name: 'Bệnh hệ tuần hoàn', description: 'Cao huyết áp' },
-        { code: 'I25.1', name_vi: 'Bệnh tim thiếu máu cục bộ', name_en: 'Atherosclerotic heart disease', chapter: 'IX', chapter_name: 'Bệnh hệ tuần hoàn' },
-        
-        // Chương XI: Bệnh hệ tiêu hóa (K00-K93)
-        { code: 'K29', name_vi: 'Viêm dạ dày tá tràng', name_en: 'Gastroduodenitis', chapter: 'XI', chapter_name: 'Bệnh hệ tiêu hóa', description: 'Viêm niêm mạc dạ dày' },
-        { code: 'K35', name_vi: 'Viêm ruột thừa cấp', name_en: 'Acute appendicitis', chapter: 'XI', chapter_name: 'Bệnh hệ tiêu hóa' },
-        
-        // Chương XIII: Bệnh hệ cơ xương khớp (M00-M99)
-        { code: 'M54', name_vi: 'Đau thắt lưng', name_en: 'Dorsalgia', chapter: 'XIII', chapter_name: 'Bệnh hệ cơ xương khớp', description: 'Đau vùng lưng' },
-        { code: 'M47', name_vi: 'Thoái hóa cột sống', name_en: 'Spondylosis', chapter: 'XIII', chapter_name: 'Bệnh hệ cơ xương khớp' },
-        
-        // Chương IV: Bệnh nội tiết (E00-E90)
-        { code: 'E11', name_vi: 'Đái tháo đường type 2', name_en: 'Type 2 diabetes mellitus', chapter: 'IV', chapter_name: 'Bệnh nội tiết', description: 'Tiểu đường type 2' },
-        { code: 'E04', name_vi: 'Bướu giáp không độc', name_en: 'Nontoxic goiter', chapter: 'IV', chapter_name: 'Bệnh nội tiết' },
-        
-        // Chương XVIII: Triệu chứng (R00-R99)
-        { code: 'R51', name_vi: 'Đau đầu', name_en: 'Headache', chapter: 'XVIII', chapter_name: 'Triệu chứng' },
-        { code: 'R05', name_vi: 'Ho', name_en: 'Cough', chapter: 'XVIII', chapter_name: 'Triệu chứng' },
-        { code: 'R50', name_vi: 'Sốt không rõ nguyên nhân', name_en: 'Fever of unknown origin', chapter: 'XVIII', chapter_name: 'Triệu chứng' },
+
+<body class="bg-slate-50 text-slate-800">
+  <div id="root"></div>
+
+  <!-- Babel -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <script type="text/babel" data-type="module">
+    import React, { useState, useEffect } from "react";
+    import { createRoot } from "react-dom/client";
+    import { Search, Star, History, Share2, BookOpen } from "lucide-react";
+
+    /* ====== ICD-10 CORE DATA (rút gọn, có thể mở rộng sau) ====== */
+    const ICD_DATA = [
+      { code: "J00", name: "Viêm mũi họng cấp", chapter: "X. Bệnh hô hấp" },
+      { code: "J06", name: "Nhiễm khuẩn hô hấp trên cấp tính", chapter: "X. Bệnh hô hấp" },
+      { code: "R51", name: "Đau đầu", chapter: "XVIII. Triệu chứng" },
+      { code: "K29", name: "Viêm dạ dày", chapter: "XI. Bệnh hệ tiêu hóa" },
+      { code: "I10", name: "Tăng huyết áp nguyên phát", chapter: "IX. Tim mạch" },
+      { code: "E11", name: "Đái tháo đường type 2", chapter: "IV. Nội tiết" }
     ];
-    
-    // Chapter data
-    const chapters = [
-        { id: 'X', name: 'Bệnh hệ hô hấp', count: 4, color: 'bg-blue-100', textColor: 'text-blue-800' },
-        { id: 'I', name: 'Bệnh nhiễm trùng', count: 2, color: 'bg-red-100', textColor: 'text-red-800' },
-        { id: 'IX', name: 'Bệnh hệ tuần hoàn', count: 2, color: 'bg-purple-100', textColor: 'text-purple-800' },
-        { id: 'XI', name: 'Bệnh hệ tiêu hóa', count: 2, color: 'bg-green-100', textColor: 'text-green-800' },
-        { id: 'XIII', name: 'Bệnh hệ cơ xương khớp', count: 2, color: 'bg-yellow-100', textColor: 'text-yellow-800' },
-        { id: 'IV', name: 'Bệnh nội tiết', count: 2, color: 'bg-pink-100', textColor: 'text-pink-800' },
-        { id: 'XVIII', name: 'Triệu chứng', count: 3, color: 'bg-gray-100', textColor: 'text-gray-800' },
-    ];
-    
-    // ========== MAIN APP COMPONENT ==========
-    function App() {
-        const [searchQuery, setSearchQuery] = useState('');
-        const [favorites, setFavorites] = useState(() => {
-            const saved = localStorage.getItem('icd10_favorites');
-            return saved ? JSON.parse(saved) : ['J00', 'I10', 'K29'];
-        });
-        const [history, setHistory] = useState(() => {
-            const saved = localStorage.getItem('icd10_history');
-            return saved ? JSON.parse(saved) : [];
-        });
-        const [activeView, setActiveView] = useState('search'); // search, chapters, favorites, history
-        const [selectedCode, setSelectedCode] = useState(null);
-        const [recentSearches, setRecentSearches] = useState([]);
-        
-        // Configure Fuse.js for fuzzy search
-        const fuse = useMemo(() => new Fuse(icd10Database, {
-            keys: ['code', 'name_vi', 'name_en', 'description'],
-            threshold: 0.3,
-            includeScore: true,
-            ignoreLocation: true,
-        }), []);
-        
-        // Search results
-        const searchResults = useMemo(() => {
-            if (!searchQuery.trim()) {
-                return recentSearches.slice(0, 5);
-            }
-            
-            const results = fuse.search(searchQuery);
-            return results.map(result => result.item);
-        }, [searchQuery, fuse, recentSearches]);
-        
-        // Filter by chapter
-        const codesByChapter = useMemo(() => {
-            const grouped = {};
-            icd10Database.forEach(item => {
-                if (!grouped[item.chapter]) {
-                    grouped[item.chapter] = [];
-                }
-                grouped[item.chapter].push(item);
-            });
-            return grouped;
-        }, []);
-        
-        // Save favorites to localStorage
-        useEffect(() => {
-            localStorage.setItem('icd10_favorites', JSON.stringify(favorites));
-        }, [favorites]);
-        
-        // Save history to localStorage
-        useEffect(() => {
-            localStorage.setItem('icd10_history', JSON.stringify(history));
-        }, [history]);
-        
-        // Handle code selection
-        const handleSelectCode = useCallback((code) => {
-            setSelectedCode(code);
-            
-            // Add to history
-            const codeData = icd10Database.find(item => item.code === code.code);
-            if (codeData) {
-                const newHistory = [
-                    codeData,
-                    ...history.filter(item => item.code !== codeData.code).slice(0, 19)
-                ];
-                setHistory(newHistory);
-                
-                // Add to recent searches
-                setRecentSearches(prev => [
-                    codeData,
-                    ...prev.filter(item => item.code !== codeData.code).slice(0, 4)
-                ]);
-            }
-        }, [history]);
-        
-        // Toggle favorite
-        const toggleFavorite = useCallback((code) => {
-            setFavorites(prev => {
-                if (prev.includes(code)) {
-                    return prev.filter(item => item !== code);
-                } else {
-                    return [...prev, code];
-                }
-            });
-        }, []);
-        
-        // Copy code to clipboard
-        const copyToClipboard = (code) => {
-            navigator.clipboard.writeText(code);
-            // Show toast (simplified)
-            alert(`Đã sao chép mã: ${code}`);
-        };
-        
-        // Share App as APK
-        const shareApp = () => {
-            const htmlContent = document.documentElement.outerHTML;
-            const blob = new Blob([htmlContent], { type: 'application/vnd.android.package-archive' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'ICD10-Quick-Reference.apk';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        };
-        
-        // Get favorite codes data
-        const favoriteCodes = useMemo(() => 
-            favorites.map(code => icd10Database.find(item => item.code === code)).filter(Boolean)
-        , [favorites]);
-        
-        // ========== RENDER COMPONENTS ==========
-        const SearchView = () => (
-            <div className="space-y-4">
-                <div className="relative">
-                    <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                    <input
-                        type="text"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Nhập mã ICD-10 hoặc triệu chứng..."
-                        className="w-full pl-12 pr-10 py-3 bg-white rounded-xl border border-gray-200 focus:border-medical-blue focus:ring-2 focus:ring-blue-100 outline-none"
-                        autoFocus
-                    />
-                    {searchQuery && (
-                        <button 
-                            onClick={() => setSearchQuery('')}
-                            className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400"
-                        >
-                            <X size={20} />
-                        </button>
-                    )}
-                </div>
-                
-                {searchQuery.trim() ? (
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-                        <div className="p-3 border-b border-gray-100">
-                            <h3 className="font-medium text-gray-700">Kết quả tìm kiếm ({searchResults.length})</h3>
-                        </div>
-                        <div className="max-h-[60vh] overflow-y-auto">
-                            {searchResults.map((item, index) => (
-                                <CodeItem 
-                                    key={item.code} 
-                                    item={item} 
-                                    isFavorite={favorites.includes(item.code)}
-                                    onSelect={handleSelectCode}
-                                    onToggleFavorite={toggleFavorite}
-                                    onCopy={copyToClipboard}
-                                />
-                            ))}
-                        </div>
-                    </div>
-                ) : (
-                    <div className="space-y-6">
-                        {/* Quick Stats */}
-                        <div className="grid grid-cols-3 gap-3">
-                            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center">
-                                <div className="text-2xl font-bold text-medical-blue">{icd10Database.length}</div>
-                                <div className="text-sm text-gray-600 mt-1">Mã bệnh</div>
-                            </div>
-                            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center">
-                                <div className="text-2xl font-bold text-medical-green">{favorites.length}</div>
-                                <div className="text-sm text-gray-600 mt-1">Yêu thích</div>
-                            </div>
-                            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center">
-                                <div className="text-2xl font-bold text-medical-red">{history.length}</div>
-                                <div className="text-sm text-gray-600 mt-1">Đã tra</div>
-                            </div>
-                        </div>
-                        
-                        {/* Recent Searches */}
-                        {recentSearches.length > 0 && (
-                            <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-                                <div className="p-3 border-b border-gray-100 flex justify-between items-center">
-                                    <h3 className="font-medium text-gray-700">Tra cứu gần đây</h3>
-                                    <Clock size={18} className="text-gray-400" />
-                                </div>
-                                <div>
-                                    {recentSearches.map((item) => (
-                                        <CodeItem 
-                                            key={item.code} 
-                                            item={item} 
-                                            isFavorite={favorites.includes(item.code)}
-                                            onSelect={handleSelectCode}
-                                            onToggleFavorite={toggleFavorite}
-                                            onCopy={copyToClipboard}
-                                        />
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                )}
-            </div>
-        );
-        
-        const ChaptersView = () => (
-            <div className="space-y-4">
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                    <h3 className="font-medium text-gray-700 mb-3">Duyệt theo chương ICD-10</h3>
-                    <p className="text-sm text-gray-600">Chọn chương để xem danh sách mã bệnh</p>
-                </div>
-                
-                <div className="space-y-3">
-                    {chapters.map((chapter) => (
-                        <button
-                            key={chapter.id}
-                            onClick={() => {
-                                const chapterCodes = codesByChapter[chapter.id] || [];
-                                setSelectedCode({ type: 'chapter', id: chapter.id, name: chapter.name, codes: chapterCodes });
-                            }}
-                            className="w-full bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center hover:bg-gray-50 active:bg-gray-100 transition-colors"
-                        >
-                            <div className="text-left">
-                                <div className="flex items-center gap-2">
-                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${chapter.color} ${chapter.textColor}`}>
-                                        <BookOpen size={16} />
-                                    </div>
-                                    <div>
-                                        <div className="font-medium text-gray-900">Chương {chapter.id}</div>
-                                        <div className="text-sm text-gray-600">{chapter.name}</div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <span className="text-sm text-gray-500">{chapter.count} mã</span>
-                                <ChevronRight size={18} className="text-gray-400" />
-                            </div>
-                        </button>
-                    ))}
-                </div>
-            </div>
-        );
-        
-        const FavoritesView = () => (
-            <div className="space-y-4">
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <h3 className="font-medium text-gray-700">Mã yêu thích</h3>
-                            <p className="text-sm text-gray-600">Các mã bạn đã đánh dấu</p>
-                        </div>
-                        <Heart size={20} className="text-red-500 fill-red-500" />
-                    </div>
-                </div>
-                
-                {favoriteCodes.length > 0 ? (
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-                        <div className="max-h-[70vh] overflow-y-auto">
-                            {favoriteCodes.map((item) => (
-                                <CodeItem 
-                                    key={item.code} 
-                                    item={item} 
-                                    isFavorite={true}
-                                    onSelect={handleSelectCode}
-                                    onToggleFavorite={toggleFavorite}
-                                    onCopy={copyToClipboard}
-                                />
-                            ))}
-                        </div>
-                    </div>
-                ) : (
-                    <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-100 text-center">
-                        <Heart size={48} className="mx-auto text-gray-300 mb-4" />
-                        <h3 className="font-medium text-gray-700 mb-2">Chưa có mã yêu thích</h3>
-                        <p className="text-gray-500">Nhấn vào biểu tượng ♡ để thêm mã vào yêu thích</p>
-                    </div>
-                )}
-            </div>
-        );
-        
-        const HistoryView = () => (
-            <div className="space-y-4">
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <h3 className="font-medium text-gray-700">Lịch sử tra cứu</h3>
-                            <p className="text-sm text-gray-600">Các mã bạn đã tìm gần đây</p>
-                        </div>
-                        <Clock size={20} className="text-gray-500" />
-                    </div>
-                </div>
-                
-                {history.length > 0 ? (
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-                        <div className="max-h-[70vh] overflow-y-auto">
-                            {history.map((item, index) => (
-                                <CodeItem 
-                                    key={`${item.code}-${index}`} 
-                                    item={item} 
-                                    isFavorite={favorites.includes(item.code)}
-                                    onSelect={handleSelectCode}
-                                    onToggleFavorite={toggleFavorite}
-                                    onCopy={copyToClipboard}
-                                />
-                            ))}
-                        </div>
-                    </div>
-                ) : (
-                    <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-100 text-center">
-                        <Clock size={48} className="mx-auto text-gray-300 mb-4" />
-                        <h3 className="font-medium text-gray-700 mb-2">Chưa có lịch sử</h3>
-                        <p className="text-gray-500">Bắt đầu tra cứu mã ICD-10 để xem lịch sử ở đây</p>
-                    </div>
-                )}
-            </div>
-        );
-        
-        const CodeItem = ({ item, isFavorite, onSelect, onToggleFavorite, onCopy }) => (
-            <div className="p-4 border-b border-gray-100 last:border-b-0 hover:bg-gray-50 active:bg-gray-100 transition-colors">
-                <div className="flex justify-between items-start gap-3">
-                    <button 
-                        onClick={() => onSelect(item)}
-                        className="text-left flex-1"
-                    >
-                        <div className="flex items-center gap-2 mb-1">
-                            <span className="font-bold text-medical-blue text-lg">{item.code}</span>
-                            {isFavorite && <Star size={14} className="text-yellow-500 fill-yellow-500" />}
-                        </div>
-                        <div className="font-medium text-gray-900 mb-1">{item.name_vi}</div>
-                        <div className="text-sm text-gray-600 mb-2">{item.name_en}</div>
-                        {item.description && (
-                            <div className="text-sm text-gray-500">{item.description}</div>
-                        )}
-                        <div className="flex items-center gap-2 mt-2">
-                            <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded-full">
-                                Chương {item.chapter}: {item.chapter_name}
-                            </span>
-                        </div>
-                    </button>
-                    
-                    <div className="flex flex-col gap-2">
-                        <button
-                            onClick={() => onToggleFavorite(item.code)}
-                            className={`p-2 rounded-lg ${isFavorite ? 'bg-red-50 text-red-600' : 'bg-gray-100 text-gray-500'}`}
-                        >
-                            <Heart size={18} className={isFavorite ? 'fill-red-600' : ''} />
-                        </button>
-                        <button
-                            onClick={() => onCopy(item.code)}
-                            className="p-2 rounded-lg bg-gray-100 text-gray-500"
-                        >
-                            <Copy size={18} />
-                        </button>
-                    </div>
-                </div>
-            </div>
-        );
-        
-        const CodeDetailView = ({ code }) => {
-            if (!code) return null;
-            
-            if (code.type === 'chapter') {
-                return (
-                    <div className="fixed inset-0 bg-white z-50 p-4 overflow-y-auto">
-                        <div className="sticky top-0 bg-white pb-4 border-b border-gray-200">
-                            <div className="flex items-center justify-between mb-4">
-                                <button 
-                                    onClick={() => setSelectedCode(null)}
-                                    className="p-2 rounded-lg bg-gray-100"
-                                >
-                                    <ChevronRight size={20} className="rotate-180" />
-                                </button>
-                                <h2 className="text-lg font-bold text-gray-900">Chương {code.id}: {code.name}</h2>
-                                <div className="w-10"></div>
-                            </div>
-                        </div>
-                        
-                        <div className="mt-4">
-                            {code.codes.map((item) => (
-                                <CodeItem 
-                                    key={item.code} 
-                                    item={item} 
-                                    isFavorite={favorites.includes(item.code)}
-                                    onSelect={handleSelectCode}
-                                    onToggleFavorite={toggleFavorite}
-                                    onCopy={copyToClipboard}
-                                />
-                            ))}
-                        </div>
-                    </div>
-                );
-            }
-            
-            const codeData = icd10Database.find(item => item.code === code.code) || code;
-            
-            return (
-                <div className="fixed inset-0 bg-white z-50 p-4 overflow-y-auto">
-                    <div className="sticky top-0 bg-white pb-4 border-b border-gray-200">
-                        <div className="flex items-center justify-between mb-4">
-                            <button 
-                                onClick={() => setSelectedCode(null)}
-                                className="p-2 rounded-lg bg-gray-100"
-                            >
-                                <ChevronRight size={20} className="rotate-180" />
-                            </button>
-                            <button
-                                onClick={() => toggleFavorite(codeData.code)}
-                                className={`p-2 rounded-lg ${favorites.includes(codeData.code) ? 'bg-red-50 text-red-600' : 'bg-gray-100 text-gray-500'}`}
-                            >
-                                <Heart size={20} className={favorites.includes(codeData.code) ? 'fill-red-600' : ''} />
-                            </button>
-                        </div>
-                        
-                        <div className="text-center mb-6">
-                            <div className="text-4xl font-bold text-medical-blue mb-2">{codeData.code}</div>
-                            <div className="text-xl font-bold text-gray-900 mb-2">{codeData.name_vi}</div>
-                            <div className="text-lg text-gray-600">{codeData.name_en}</div>
-                        </div>
-                    </div>
-                    
-                    <div className="mt-6 space-y-6">
-                        <div className="bg-gray-50 p-4 rounded-xl">
-                            <h3 className="font-medium text-gray-700 mb-2">Thông tin chi tiết</h3>
-                            <div className="space-y-3">
-                                <div className="flex justify-between">
-                                    <span className="text-gray-600">Chương ICD-10:</span>
-                                    <span className="font-medium">{codeData.chapter} - {codeData.chapter_name}</span>
-                                </div>
-                                {codeData.description && (
-                                    <div>
-                                        <div className="text-gray-600 mb-1">Mô tả:</div>
-                                        <div className="text-gray-900">{codeData.description}</div>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                        
-                        <div className="grid grid-cols-2 gap-3">
-                            <button
-                                onClick={() => copyToClipboard(codeData.code)}
-                                className="p-3 bg-blue-50 text-blue-700 rounded-xl flex flex-col items-center justify-center"
-                            >
-                                <Copy size={24} className="mb-2" />
-                                <span className="text-sm font-medium">Sao chép mã</span>
-                            </button>
-                            <button
-                                onClick={() => copyToClipboard(`${codeData.code} - ${codeData.name_vi}`)}
-                                className="p-3 bg-green-50 text-green-700 rounded-xl flex flex-col items-center justify-center"
-                            >
-                                <Bookmark size={24} className="mb-2" />
-                                <span className="text-sm font-medium">Sao chép đầy đủ</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            );
-        };
-        
-        return (
-            <div className="min-h-screen bg-gray-50 pb-20">
-                {/* Header */}
-                <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40">
-                    <div className="p-4">
-                        <div className="flex justify-between items-center mb-2">
-                            <div>
-                                <h1 className="text-xl font-bold text-gray-900">ICD-10 Quick Reference</h1>
-                                <p className="text-sm text-gray-600">Tra cứu mã bệnh tức thì</p>
-                            </div>
-                            <button
-                                onClick={shareApp}
-                                className="p-2 bg-medical-blue text-white rounded-lg"
-                                title="Chia sẻ ứng dụng"
-                            >
-                                <Share2 size={20} />
-                            </button>
-                        </div>
-                        
-                        {/* Navigation Tabs */}
-                        <div className="flex border-b border-gray-200 mt-4">
-                            {[
-                                { id: 'search', label: 'Tìm kiếm', icon: Search },
-                                { id: 'chapters', label: 'Chương', icon: BookOpen },
-                                { id: 'favorites', label: 'Yêu thích', icon: Heart },
-                                { id: 'history', label: 'Lịch sử', icon: Clock },
-                            ].map((tab) => (
-                                <button
-                                    key={tab.id}
-                                    onClick={() => setActiveView(tab.id)}
-                                    className={`flex-1 py-3 flex flex-col items-center justify-center ${activeView === tab.id ? 'text-medical-blue border-b-2 border-medical-blue' : 'text-gray-500'}`}
-                                >
-                                    <tab.icon size={20} className="mb-1" />
-                                    <span className="text-xs font-medium">{tab.label}</span>
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                </header>
-                
-                {/* Main Content */}
-                <main className="p-4">
-                    {activeView === 'search' && <SearchView />}
-                    {activeView === 'chapters' && <ChaptersView />}
-                    {activeView === 'favorites' && <FavoritesView />}
-                    {activeView === 'history' && <HistoryView />}
-                </main>
-                
-                {/* Footer */}
-                <footer className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4">
-                    <div className="max-w-md mx-auto">
-                        <div className="flex justify-between items-center text-xs text-gray-500">
-                            <div>
-                                <div className="font-medium">{icd10Database.length} mã bệnh</div>
-                                <div>Dữ liệu offline</div>
-                            </div>
-                            <div className="text-right">
-                                <div className="font-medium">Dành cho y tế</div>
-                                <div>© 2024 ICD-10 Quick Reference</div>
-                            </div>
-                        </div>
-                    </div>
-                </footer>
-                
-                {/* Detail Modal */}
-                {selectedCode && <CodeDetailView code={selectedCode} />}
-            </div>
-        );
+
+    /* ====== Fuzzy search đơn giản ====== */
+    function fuzzyMatch(text, query) {
+      const t = text.toLowerCase();
+      const q = query.toLowerCase();
+      let ti = 0;
+      for (let qi = 0; qi < q.length; qi++) {
+        ti = t.indexOf(q[qi], ti);
+        if (ti === -1) return false;
+        ti++;
+      }
+      return true;
     }
-    
-    // ========== RENDER REACT APP ==========
-    const container = document.getElementById('root');
-    const root = createRoot(container);
-    root.render(<App />);
-    </script>
+
+    function App() {
+      const [query, setQuery] = useState("");
+      const [favorites, setFavorites] = useState(
+        JSON.parse(localStorage.getItem("ICD_FAV") || "[]")
+      );
+      const [history, setHistory] = useState(
+        JSON.parse(localStorage.getItem("ICD_HIS") || "[]")
+      );
+      const [chapter, setChapter] = useState("ALL");
+
+      useEffect(() => {
+        localStorage.setItem("ICD_FAV", JSON.stringify(favorites));
+      }, [favorites]);
+
+      useEffect(() => {
+        localStorage.setItem("ICD_HIS", JSON.stringify(history));
+      }, [history]);
+
+      const chapters = ["ALL", ...new Set(ICD_DATA.map(i => i.chapter))];
+
+      const results = ICD_DATA.filter(i => {
+        if (chapter !== "ALL" && i.chapter !== chapter) return false;
+        if (!query) return true;
+        return (
+          i.code.toLowerCase().includes(query.toLowerCase()) ||
+          fuzzyMatch(i.name, query)
+        );
+      });
+
+      const toggleFav = code => {
+        setFavorites(f =>
+          f.includes(code) ? f.filter(x => x !== code) : [...f, code]
+        );
+      };
+
+      const selectItem = code => {
+        setHistory(h => [code, ...h.filter(x => x !== code)].slice(0, 10));
+      };
+
+      const shareApp = () => {
+        const html = document.documentElement.outerHTML;
+        const blob = new Blob([html], {
+          type: "application/vnd.android.package-archive"
+        });
+        const file = new File([blob], "ICD10_Quick_Reference.apk");
+        if (navigator.share) {
+          navigator.share({ files: [file], title: "ICD-10 Quick Reference" });
+        } else {
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(blob);
+          a.download = file.name;
+          a.click();
+        }
+      };
+
+      return (
+        <div className="p-4 space-y-4">
+          <header className="flex justify-between items-center">
+            <h1 className="text-lg font-bold text-teal-700 flex items-center gap-2">
+              <BookOpen size={18}/> ICD-10 Quick Reference
+            </h1>
+            <button
+              onClick={shareApp}
+              className="flex items-center gap-1 text-sm bg-teal-600 text-white px-3 py-1.5 rounded-lg"
+            >
+              <Share2 size={16}/> Chia sẻ App
+            </button>
+          </header>
+
+          <div className="relative">
+            <Search className="absolute left-3 top-3 text-slate-400" size={18} />
+            <input
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="Nhập mã ICD hoặc tên bệnh"
+              className="w-full pl-10 pr-3 py-2 rounded-xl border focus:outline-none focus:ring"
+            />
+          </div>
+
+          <div className="flex gap-2 overflow-x-auto">
+            {chapters.map(c => (
+              <button
+                key={c}
+                onClick={() => setChapter(c)}
+                className={`px-3 py-1 rounded-full text-sm whitespace-nowrap ${
+                  chapter === c
+                    ? "bg-teal-600 text-white"
+                    : "bg-white border"
+                }`}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+
+          {favorites.length > 0 && (
+            <div>
+              <div className="text-sm font-semibold flex items-center gap-1">
+                <Star size={14}/> Yêu thích
+              </div>
+              <div className="text-sm text-slate-600">
+                {favorites.join(", ")}
+              </div>
+            </div>
+          )}
+
+          {history.length > 0 && (
+            <div>
+              <div className="text-sm font-semibold flex items-center gap-1">
+                <History size={14}/> Gần đây
+              </div>
+              <div className="text-sm text-slate-600">
+                {history.join(", ")}
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-2">
+            {results.map(item => (
+              <div
+                key={item.code}
+                onClick={() => selectItem(item.code)}
+                className="bg-white p-3 rounded-xl shadow flex justify-between items-center"
+              >
+                <div>
+                  <div className="font-semibold text-teal-700">
+                    {item.code} – {item.name}
+                  </div>
+                  <div className="text-xs text-slate-500">{item.chapter}</div>
+                </div>
+                <button onClick={e => { e.stopPropagation(); toggleFav(item.code); }}>
+                  <Star
+                    size={18}
+                    className={favorites.includes(item.code) ? "text-yellow-500" : "text-slate-300"}
+                  />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    createRoot(document.getElementById("root")).render(<App />);
+  </script>
 </body>
 </html>
 ```
