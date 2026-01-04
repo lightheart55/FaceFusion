@@ -29,7 +29,7 @@
       
       body {
         font-family: 'Inter', sans-serif;
-        user-select: none; /* App-like feel */
+        user-select: none;
         -webkit-user-select: none;
         -webkit-tap-highlight-color: transparent;
         overscroll-behavior-y: none;
@@ -52,13 +52,13 @@
       }
     </style>
 
-    <!-- Import Map -->
+    <!-- Import Map: Explicitly defining versions ensures stability -->
     <script type="importmap">
 {
   "imports": {
-    "react": "https://esm.sh/react@18.2.0",
-    "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
-    "lucide-react": "https://esm.sh/lucide-react@0.344.0",
+    "react": "https://esm.sh/react@18.2.0?dev",
+    "react-dom/client": "https://esm.sh/react-dom@18.2.0/client?dev",
+    "lucide-react": "https://esm.sh/lucide-react@0.344.0?dev",
     "@google/genai": "https://esm.sh/@google/genai@0.1.1",
     "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
     "react/": "https://esm.sh/react@^19.2.3/"
@@ -66,7 +66,7 @@
 }
 </script>
     
-    <!-- Babel for in-browser JSX compilation -->
+    <!-- Babel for in-browser JSX/TSX compilation -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
     <!-- PWA Manifest & Service Worker Injection -->
@@ -105,7 +105,7 @@
         link.href = manifestUrl;
         document.head.appendChild(link);
 
-        // 2. Inject Service Worker
+        // 2. Inject Service Worker (Fake SW to trigger PWA install prompts)
         if ('serviceWorker' in navigator) {
           const swContent = `
             self.addEventListener('install', (e) => self.skipWaiting());
@@ -124,18 +124,21 @@
   <body class="bg-slate-50 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100">
     <div id="root"></div>
 
-    <script type="text/babel" data-type="module">
+    <!-- MAIN SCRIPT: Added data-presets="env,react,typescript" to handle TS syntax -->
+    <script type="text/babel" data-type="module" data-presets="env,react,typescript">
       import React, { useState, useEffect, useRef, useCallback } from 'react';
       import ReactDOM from 'react-dom/client';
       import { Mic, Upload, Sparkles, AlertTriangle, Moon, Sun, Square, AlertCircle, UploadCloud, FileAudio, X, User, Clock, Globe, Languages, Smile, Frown, Meh, Share2 } from 'lucide-react';
       import { GoogleGenAI, Type } from '@google/genai';
 
       // --- Polyfill for process.env ---
-      if (!window.process) {
-        window.process = { env: { API_KEY: '' } }; // Placeholder
-      }
+      // Fixes "process is not defined" errors in browser
+      window.process = window.process || { env: {} };
+      // Ensure API_KEY is accessible. Check local storage or default to empty string.
+      // NOTE: In a real deploy, you might Inject this string differently.
+      window.process.env.API_KEY = window.process.env.API_KEY || localStorage.getItem('GEMINI_API_KEY') || '';
 
-      // --- TYPES ---
+      // --- TYPES (Kept for reference, Babel strips these) ---
       const Emotion = {
         Happy: 'Happy',
         Sad: 'Sad',
@@ -146,22 +149,23 @@
       // --- SERVICE: geminiService ---
       const parseJson = (text) => {
         try {
-            const cleanText = text.replace(/```json\n|\n```/g, "").trim();
+            // Remove code blocks if present
+            const cleanText = text.replace(/```json\n|\n```/g, "").replace(/```/g, "").trim();
             return JSON.parse(cleanText);
         } catch (e) {
             console.error("Failed to parse JSON response:", e);
+            console.log("Raw text:", text);
             return [];
         }
       };
 
       const transcribeAudio = async (base64Audio, mimeType) => {
-        if (!window.process.env.API_KEY) {
-          // Warning mainly for development; in production key should be injected or handled
-          console.warn("API Key is missing from process.env.API_KEY");
+        const apiKey = window.process.env.API_KEY;
+        if (!apiKey) {
+           throw new Error("API Key is missing. Please provide it in the code or environment.");
         }
 
-        // Initialize AI with key from env
-        const ai = new GoogleGenAI({ apiKey: window.process.env.API_KEY });
+        const ai = new GoogleGenAI({ apiKey });
         const modelId = "gemini-3-flash-preview";
 
         const prompt = `
@@ -253,6 +257,10 @@
 
         } catch (error) {
           console.error("Gemini Transcription Error:", error);
+          // Enhance error message for user
+          if (error.message.includes('API Key')) {
+             throw new Error("Invalid or missing API Key.");
+          }
           throw error;
         }
       };
@@ -711,7 +719,7 @@
             setStatus('success');
           } catch (err) {
             console.error(err);
-            setError("An error occurred during transcription. Please try again.");
+            setError(err.message || "An error occurred during transcription.");
             setStatus('error');
           }
         };
