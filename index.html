@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#4f46e5" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <title>EchoScript AI</title>
+    <title>EchoScript AI - Audio Transcription</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -18,6 +18,16 @@
             fontFamily: {
               sans: ['Inter', 'sans-serif'],
             },
+            animation: {
+              'pulse-slow': 'pulse 3s ease-in-out infinite',
+              'float': 'float 6s ease-in-out infinite',
+            },
+            keyframes: {
+              float: {
+                '0%, 100%': { transform: 'translateY(0)' },
+                '50%': { transform: 'translateY(-10px)' },
+              }
+            }
           },
         },
       }
@@ -50,33 +60,39 @@
       .dark ::-webkit-scrollbar-thumb {
         background: #475569;
       }
+
+      /* Selection color */
+      ::selection {
+        background-color: rgba(79, 70, 229, 0.3);
+        color: inherit;
+      }
+
+      /* Smooth transitions */
+      * {
+        transition: background-color 0.3s ease, border-color 0.3s ease;
+      }
     </style>
 
-    <!-- Import Map: Explicitly defining versions ensures stability -->
+    <!-- Import Map -->
     <script type="importmap">
 {
   "imports": {
-    "react": "https://esm.sh/react@18.2.0?dev",
-    "react-dom/client": "https://esm.sh/react-dom@18.2.0/client?dev",
-    "lucide-react": "https://esm.sh/lucide-react@0.344.0?dev",
-    "@google/genai": "https://esm.sh/@google/genai@0.1.1",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-    "react/": "https://esm.sh/react@^19.2.3/"
+    "react": "https://esm.sh/react@18.2.0",
+    "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+    "lucide-react": "https://esm.sh/lucide-react@0.344.0",
+    "@google/genai": "https://esm.sh/@google/genai@0.1.1"
   }
 }
 </script>
     
-    <!-- Babel for in-browser JSX/TSX compilation -->
+    <!-- Babel for in-browser JSX compilation -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-    <!-- PWA Manifest & Service Worker Injection -->
+    <!-- PWA Manifest -->
+    <link rel="manifest" id="manifest-link">
     <script>
-      (function() {
-        // 1. Inject Manifest
-        const iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none"><rect width="512" height="512" rx="128" fill="#4F46E5"/><path d="M256 128C220.6 128 192 156.6 192 192V320C192 355.4 220.6 384 256 384C291.4 384 320 355.4 320 320V192C320 156.6 291.4 128 256 128Z" fill="white"/><path d="M384 192V320" stroke="white" stroke-width="32" stroke-linecap="round"/><path d="M128 192V320" stroke="white" stroke-width="32" stroke-linecap="round"/></svg>`;
-        const iconBlob = new Blob([iconSvg], { type: 'image/svg+xml' });
-        const iconUrl = URL.createObjectURL(iconBlob);
-
+      // Create dynamic manifest for PWA
+      document.addEventListener('DOMContentLoaded', function() {
         const manifest = {
           name: "EchoScript AI",
           short_name: "EchoScript",
@@ -85,11 +101,9 @@
           background_color: "#ffffff",
           theme_color: "#4f46e5",
           orientation: "portrait",
-          scope: ".",
-          id: "/",
           icons: [
             {
-              src: iconUrl,
+              src: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%234f46e5'/><path d='M50 30C40 30 35 40 35 50V70C35 80 40 90 50 90C60 90 65 80 65 70V50C65 40 60 30 50 30Z' fill='white'/><path d='M80 50V70' stroke='white' stroke-width='6' stroke-linecap='round'/><path d='M20 50V70' stroke='white' stroke-width='6' stroke-linecap='round'/></svg>",
               sizes: "512x512",
               type: "image/svg+xml",
               purpose: "any maskable"
@@ -99,46 +113,56 @@
         
         const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
         const manifestUrl = URL.createObjectURL(manifestBlob);
-        
-        const link = document.createElement('link');
-        link.rel = 'manifest';
-        link.href = manifestUrl;
-        document.head.appendChild(link);
+        document.getElementById('manifest-link').href = manifestUrl;
+      });
 
-        // 2. Inject Service Worker (Fake SW to trigger PWA install prompts)
-        if ('serviceWorker' in navigator) {
-          const swContent = `
-            self.addEventListener('install', (e) => self.skipWaiting());
-            self.addEventListener('activate', (e) => self.clients.claim());
-            self.addEventListener('fetch', (e) => {}); 
-          `;
-          const swBlob = new Blob([swContent], { type: 'application/javascript' });
-          const swUrl = URL.createObjectURL(swBlob);
-          navigator.serviceWorker.register(swUrl)
-            .then(() => console.log('Service Worker Registered (Runtime Injection)'))
-            .catch(console.error);
-        }
-      })();
+      // PWA install prompt
+      let deferredPrompt;
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        // Show install button after 3 seconds
+        setTimeout(showInstallButton, 3000);
+      });
+
+      function showInstallButton() {
+        if (!deferredPrompt) return;
+        
+        const installBtn = document.createElement('button');
+        installBtn.innerHTML = '📱 Install EchoScript';
+        installBtn.className = 'fixed bottom-4 right-4 z-50 bg-indigo-600 text-white px-4 py-2 rounded-full shadow-lg hover:bg-indigo-700 transition-colors text-sm font-medium';
+        installBtn.onclick = () => {
+          deferredPrompt.prompt();
+          deferredPrompt.userChoice.then((choiceResult) => {
+            if (choiceResult.outcome === 'accepted') {
+              console.log('User accepted the install prompt');
+              installBtn.remove();
+            }
+            deferredPrompt = null;
+          });
+        };
+        document.body.appendChild(installBtn);
+        
+        // Auto remove after 15 seconds
+        setTimeout(() => {
+          if (installBtn.parentNode) {
+            installBtn.remove();
+          }
+        }, 15000);
+      }
     </script>
   </head>
   <body class="bg-slate-50 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100">
     <div id="root"></div>
 
-    <!-- MAIN SCRIPT: Added data-presets="env,react,typescript" to handle TS syntax -->
-    <script type="text/babel" data-type="module" data-presets="env,react,typescript">
+    <!-- Main Application Script -->
+    <script type="text/babel" data-type="module" data-presets="env,react">
       import React, { useState, useEffect, useRef, useCallback } from 'react';
       import ReactDOM from 'react-dom/client';
-      import { Mic, Upload, Sparkles, AlertTriangle, Moon, Sun, Square, AlertCircle, UploadCloud, FileAudio, X, User, Clock, Globe, Languages, Smile, Frown, Meh, Share2 } from 'lucide-react';
+      import { Mic, Upload, Sparkles, AlertTriangle, Moon, Sun, Square, AlertCircle, UploadCloud, FileAudio, X, User, Clock, Globe, Languages, Smile, Frown, Meh, Share2, Settings, Key, Download } from 'lucide-react';
       import { GoogleGenAI, Type } from '@google/genai';
 
-      // --- Polyfill for process.env ---
-      // Fixes "process is not defined" errors in browser
-      window.process = window.process || { env: {} };
-      // Ensure API_KEY is accessible. Check local storage or default to empty string.
-      // NOTE: In a real deploy, you might Inject this string differently.
-      window.process.env.API_KEY = window.process.env.API_KEY || localStorage.getItem('GEMINI_API_KEY') || '';
-
-      // --- TYPES (Kept for reference, Babel strips these) ---
+      // Emotion types
       const Emotion = {
         Happy: 'Happy',
         Sad: 'Sad',
@@ -146,34 +170,43 @@
         Neutral: 'Neutral'
       };
 
-      // --- SERVICE: geminiService ---
+      // --- API KEY MANAGEMENT ---
+      const getApiKey = () => {
+        return localStorage.getItem('ECHOSCRIPT_API_KEY') || '';
+      };
+
+      const setApiKey = (key) => {
+        localStorage.setItem('ECHOSCRIPT_API_KEY', key);
+      };
+
+      // --- TRANSCRIPTION SERVICE ---
       const parseJson = (text) => {
         try {
-            // Remove code blocks if present
-            const cleanText = text.replace(/```json\n|\n```/g, "").replace(/```/g, "").trim();
-            return JSON.parse(cleanText);
+          // Remove code blocks if present
+          const cleanText = text.replace(/```json\n|\n```/g, "").replace(/```/g, "").trim();
+          return JSON.parse(cleanText);
         } catch (e) {
-            console.error("Failed to parse JSON response:", e);
-            console.log("Raw text:", text);
-            return [];
+          console.error("Failed to parse JSON response:", e);
+          console.log("Raw text:", text);
+          return { summary: "Error parsing transcription", segments: [] };
         }
       };
 
       const transcribeAudio = async (base64Audio, mimeType) => {
-        const apiKey = window.process.env.API_KEY;
+        const apiKey = getApiKey();
         if (!apiKey) {
-           throw new Error("API Key is missing. Please provide it in the code or environment.");
+          throw new Error("API Key is missing. Please set your Gemini API key in settings.");
         }
 
         const ai = new GoogleGenAI({ apiKey });
-        const modelId = "gemini-3-flash-preview";
+        const modelId = "gemini-1.5-flash";
 
         const prompt = `
           You are an expert audio transcription assistant.
           Process the provided audio file and generate a detailed transcription.
           
           Requirements:
-          1. Identify distinct speakers (e.g., Speaker 1, Speaker 2, or names if context allows).
+          1. Identify distinct speakers (e.g., Speaker 1, Speaker 2).
           2. Provide accurate timestamps for each segment (Format: MM:SS).
           3. Detect the primary language of each segment.
           4. If the segment is in a language different than English, also provide the English translation.
@@ -215,38 +248,8 @@
               ],
             },
             config: {
-              responseMimeType: "application/json",
-              responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                  summary: {
-                    type: Type.STRING,
-                    description: "A concise summary of the audio content.",
-                  },
-                  segments: {
-                    type: Type.ARRAY,
-                    description: "List of transcribed segments with speaker and timestamp.",
-                    items: {
-                      type: Type.OBJECT,
-                      properties: {
-                        speaker: { type: Type.STRING },
-                        timestamp: { type: Type.STRING },
-                        content: { type: Type.STRING },
-                        language: { type: Type.STRING },
-                        language_code: { type: Type.STRING },
-                        translation:  { type: Type.STRING },
-                        emotion: { 
-                          type: Type.STRING, 
-                          description: "The emotion of the speaker.",
-                          enum: Object.values(Emotion)
-                        },
-                      },
-                      required: ["speaker", "timestamp", "content", "language", "language_code", "emotion"],
-                    },
-                  },
-                },
-                required: ["summary", "segments"],
-              },
+              temperature: 0.1,
+              maxOutputTokens: 4000,
             },
           });
 
@@ -257,15 +260,21 @@
 
         } catch (error) {
           console.error("Gemini Transcription Error:", error);
-          // Enhance error message for user
-          if (error.message.includes('API Key')) {
-             throw new Error("Invalid or missing API Key.");
+          
+          // User-friendly error messages
+          if (error.message.includes('API Key') || error.message.includes('API_KEY')) {
+            throw new Error("Invalid API Key. Please check your Gemini API key in settings.");
+          } else if (error.message.includes('quota')) {
+            throw new Error("API quota exceeded. Please check your Gemini API usage limits.");
+          } else if (error.message.includes('network')) {
+            throw new Error("Network error. Please check your connection and try again.");
+          } else {
+            throw new Error("Transcription failed: " + error.message);
           }
-          throw error;
         }
       };
 
-      // --- COMPONENTS ---
+      // --- REACT COMPONENTS ---
 
       // Button Component
       const Button = ({ 
@@ -277,11 +286,11 @@
         disabled,
         ...props 
       }) => {
-        const baseStyles = "flex items-center justify-center px-4 py-2 rounded-lg font-medium transition-all focus:outline-none focus:ring-2 focus:ring-offset-1 dark:focus:ring-offset-slate-900 disabled:opacity-50 disabled:cursor-not-allowed";
+        const baseStyles = "flex items-center justify-center px-4 py-2.5 rounded-lg font-medium transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed";
         
         const variants = {
-          primary: "bg-indigo-600 text-white hover:bg-indigo-700 dark:hover:bg-indigo-500 focus:ring-indigo-500 shadow-md hover:shadow-lg",
-          secondary: "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 focus:ring-slate-300 dark:focus:ring-slate-500 shadow-sm",
+          primary: "bg-indigo-600 text-white hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 focus:ring-indigo-500 shadow-md hover:shadow-lg",
+          secondary: "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 focus:ring-slate-300 dark:focus:ring-slate-600 shadow-sm",
           danger: "bg-red-500 text-white hover:bg-red-600 dark:hover:bg-red-400 focus:ring-red-500 shadow-md",
           ghost: "bg-transparent text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
         };
@@ -305,6 +314,82 @@
         );
       };
 
+      // API Key Input Component
+      const ApiKeyModal = ({ isOpen, onClose, onSave }) => {
+        const [apiKey, setApiKey] = useState(getApiKey());
+        const [showKey, setShowKey] = useState(false);
+
+        if (!isOpen) return null;
+
+        const handleSave = () => {
+          setApiKey(apiKey);
+          onSave(apiKey);
+          onClose();
+        };
+
+        return (
+          <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+            <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 max-w-md w-full shadow-2xl">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold text-slate-900 dark:text-white flex items-center">
+                  <Key className="mr-2" size={20} />
+                  Gemini API Key
+                </h3>
+                <button
+                  onClick={onClose}
+                  className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              
+              <p className="text-slate-600 dark:text-slate-400 mb-4 text-sm">
+                Get your free API key from{' '}
+                <a 
+                  href="https://makersuite.google.com/app/apikey" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-indigo-600 dark:text-indigo-400 underline"
+                >
+                  Google AI Studio
+                </a>
+                . Your key is stored locally in your browser and never sent to our servers.
+              </p>
+              
+              <div className="mb-4">
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                    API Key
+                  </label>
+                  <button
+                    onClick={() => setShowKey(!showKey)}
+                    className="text-xs text-indigo-600 dark:text-indigo-400"
+                  >
+                    {showKey ? 'Hide' : 'Show'}
+                  </button>
+                </div>
+                <input
+                  type={showKey ? "text" : "password"}
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  placeholder="Enter your Gemini API key"
+                />
+              </div>
+              
+              <div className="flex gap-3">
+                <Button onClick={handleSave} className="flex-1">
+                  Save Key
+                </Button>
+                <Button variant="secondary" onClick={onClose} className="flex-1">
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </div>
+        );
+      };
+
       // AudioRecorder Component
       const AudioRecorder = ({ onAudioCaptured, disabled }) => {
         const [isRecording, setIsRecording] = useState(false);
@@ -319,7 +404,13 @@
         const startRecording = useCallback(async () => {
           setError(null);
           try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+              audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                sampleRate: 44100
+              }
+            });
             streamRef.current = stream;
             
             const mediaRecorder = new MediaRecorder(stream);
@@ -343,7 +434,8 @@
                 onAudioCaptured({
                   blob,
                   base64,
-                  mimeType: 'audio/webm'
+                  mimeType: 'audio/webm',
+                  duration: duration
                 });
               };
               
@@ -353,7 +445,7 @@
               }
             };
 
-            mediaRecorder.start();
+            mediaRecorder.start(1000); // Collect data every second
             setIsRecording(true);
             
             const startTime = Date.now();
@@ -363,9 +455,9 @@
 
           } catch (err) {
             console.error("Error accessing microphone:", err);
-            setError("Could not access microphone. Please ensure permissions are granted.");
+            setError("Microphone access denied. Please allow microphone permissions in your browser settings.");
           }
-        }, [onAudioCaptured]);
+        }, [onAudioCaptured, duration]);
 
         const stopRecording = useCallback(() => {
           if (mediaRecorderRef.current && isRecording) {
@@ -375,14 +467,15 @@
               clearInterval(timerRef.current);
               timerRef.current = null;
             }
-            setDuration(0);
           }
         }, [isRecording]);
 
         useEffect(() => {
           return () => {
             if (timerRef.current) clearInterval(timerRef.current);
-            if (streamRef.current) streamRef.current.getTracks().forEach(track => track.stop());
+            if (streamRef.current) {
+              streamRef.current.getTracks().forEach(track => track.stop());
+            }
           };
         }, []);
 
@@ -393,18 +486,21 @@
         };
 
         return (
-          <div className="flex flex-col items-center justify-center p-8 bg-white dark:bg-slate-800 border-2 border-dashed border-indigo-100 dark:border-slate-700 rounded-2xl transition-colors duration-300">
-            <div className={`relative flex items-center justify-center w-24 h-24 mb-6 rounded-full transition-all duration-300 ${isRecording ? 'bg-red-50 dark:bg-red-900/20' : 'bg-indigo-50 dark:bg-indigo-900/30'}`}>
+          <div className="flex flex-col items-center justify-center p-6 bg-white dark:bg-slate-800 border-2 border-dashed border-indigo-200 dark:border-slate-700 rounded-2xl transition-all duration-300 hover:border-indigo-300 dark:hover:border-slate-600">
+            <div className={`relative flex items-center justify-center w-20 h-20 mb-6 rounded-full transition-all duration-300 ${isRecording ? 'bg-red-50 dark:bg-red-900/20' : 'bg-indigo-50 dark:bg-indigo-900/30'}`}>
               {isRecording && (
-                <span className="absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-20 animate-ping"></span>
+                <>
+                  <span className="absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-20 animate-ping"></span>
+                  <span className="absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-10"></span>
+                </>
               )}
               {isRecording ? (
                   <div className="text-red-500 dark:text-red-400">
-                      <Mic size={40} className="animate-pulse" />
+                      <Mic size={32} className="animate-pulse" />
                   </div>
               ) : (
                   <div className="text-indigo-500 dark:text-indigo-400">
-                      <Mic size={40} />
+                      <Mic size={32} />
                   </div>
               )}
             </div>
@@ -414,19 +510,20 @@
                 <div>
                   <h3 className="text-lg font-semibold text-slate-800 dark:text-white">Recording...</h3>
                   <p className="text-3xl font-mono text-slate-600 dark:text-slate-300 mt-2">{formatTime(duration)}</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">Click stop when finished</p>
                 </div>
               ) : (
                 <div>
-                  <h3 className="text-lg font-semibold text-slate-800 dark:text-white">Start Recording</h3>
-                  <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Click the microphone to begin</p>
+                  <h3 className="text-lg font-semibold text-slate-800 dark:text-white">Ready to Record</h3>
+                  <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Click the button below to start</p>
                 </div>
               )}
             </div>
 
             {error && (
-              <div className="flex items-center text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-4 py-2 rounded-lg mb-4 text-sm">
-                <AlertCircle size={16} className="mr-2" />
-                {error}
+              <div className="flex items-center text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-4 py-3 rounded-lg mb-4 text-sm w-full">
+                <AlertCircle size={16} className="mr-2 flex-shrink-0" />
+                <span>{error}</span>
               </div>
             )}
 
@@ -434,6 +531,7 @@
               <Button 
                 onClick={startRecording} 
                 disabled={disabled}
+                icon={<Mic size={18} />}
                 className="w-full max-w-xs"
               >
                 Start Recording
@@ -442,10 +540,10 @@
               <Button 
                 onClick={stopRecording} 
                 variant="danger"
-                icon={<Square size={16} fill="currentColor" />}
+                icon={<Square size={18} />}
                 className="w-full max-w-xs"
               >
-                Stop Recording
+                Stop Recording ({formatTime(duration)})
               </Button>
             )}
           </div>
@@ -459,8 +557,13 @@
         const inputRef = useRef(null);
 
         const processFile = (file) => {
+          if (file.size > 20 * 1024 * 1024) { // 20MB limit
+            alert("File size too large. Please upload a file smaller than 20MB.");
+            return;
+          }
+
           if (!file.type.startsWith('audio/') && !file.type.startsWith('video/')) {
-            alert("Please upload a valid audio file.");
+            alert("Please upload a valid audio or video file.");
             return;
           }
 
@@ -475,7 +578,8 @@
             onFileSelected({
               blob: file,
               base64,
-              mimeType: file.type
+              mimeType: file.type,
+              name: file.name
             });
           };
         };
@@ -510,21 +614,13 @@
           if (inputRef.current) inputRef.current.value = "";
         };
 
-        const handleKeyDown = (e) => {
-          if (disabled) return;
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            inputRef.current?.click();
-          }
-        };
-
         return (
           <div className="w-full">
             <input
               ref={inputRef}
               type="file"
               className="hidden"
-              accept="audio/*,video/*"
+              accept="audio/*,video/*,.mp3,.wav,.m4a,.webm,.mp4,.ogg"
               onChange={handleChange}
               disabled={disabled}
             />
@@ -544,20 +640,19 @@
                 onDragOver={handleDrag}
                 onDrop={handleDrop}
                 onClick={() => !disabled && inputRef.current?.click()}
-                onKeyDown={handleKeyDown}
               >
-                <div className="p-4 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-500 dark:text-indigo-400 rounded-full mb-4">
+                <div className="p-4 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-500 dark:text-indigo-400 rounded-full mb-4 animate-float">
                   <UploadCloud size={32} />
                 </div>
                 <p className="text-lg font-medium text-slate-700 dark:text-slate-200 mb-1">
                   Click to upload or drag & drop
                 </p>
                 <p className="text-sm text-slate-500 dark:text-slate-400">
-                  MP3, WAV, M4A, WEBM (Max 20MB)
+                  MP3, WAV, M4A, WEBM, MP4 (Max 20MB)
                 </p>
               </div>
             ) : (
-              <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6 flex items-center justify-between shadow-sm transition-colors duration-300">
+              <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-5 flex items-center justify-between shadow-sm transition-colors duration-300 hover:shadow-md">
                 <div className="flex items-center space-x-4">
                   <div className="p-3 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 rounded-lg">
                     <FileAudio size={24} />
@@ -583,27 +678,29 @@
 
       // TranscriptionDisplay Component
       const TranscriptionDisplay = ({ data }) => {
+        const [copied, setCopied] = useState(false);
+
         const getEmotionBadge = (emotion) => {
           if (!emotion) return null;
 
           switch (emotion) {
             case Emotion.Happy:
               return (
-                <div className="flex items-center bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 px-2 py-1 rounded border border-green-100 dark:border-green-800">
+                <div className="flex items-center bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 px-3 py-1 rounded-full border border-green-100 dark:border-green-800 text-sm">
                   <Smile size={14} className="mr-1.5" />
                   {emotion}
                 </div>
               );
             case Emotion.Sad:
               return (
-                <div className="flex items-center bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-1 rounded border border-blue-100 dark:border-blue-800">
+                <div className="flex items-center bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-3 py-1 rounded-full border border-blue-100 dark:border-blue-800 text-sm">
                   <Frown size={14} className="mr-1.5" />
                   {emotion}
                 </div>
               );
             case Emotion.Angry:
               return (
-                <div className="flex items-center bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 px-2 py-1 rounded border border-red-100 dark:border-red-800">
+                <div className="flex items-center bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 px-3 py-1 rounded-full border border-red-100 dark:border-red-800 text-sm">
                   <AlertCircle size={14} className="mr-1.5" />
                   {emotion}
                 </div>
@@ -611,7 +708,7 @@
             case Emotion.Neutral:
             default:
               return (
-                <div className="flex items-center bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-2 py-1 rounded border border-slate-200 dark:border-slate-600">
+                <div className="flex items-center bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-3 py-1 rounded-full border border-slate-200 dark:border-slate-600 text-sm">
                   <Meh size={14} className="mr-1.5" />
                   {emotion}
                 </div>
@@ -619,47 +716,95 @@
           }
         };
 
+        const copyToClipboard = () => {
+          const textToCopy = `Summary:\n${data.summary}\n\nTranscript:\n${data.segments.map(s => `[${s.timestamp}] ${s.speaker}: ${s.content}${s.translation ? ` (Translation: ${s.translation})` : ''}`).join('\n')}`;
+          
+          navigator.clipboard.writeText(textToCopy).then(() => {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+          });
+        };
+
+        const downloadTranscript = () => {
+          const textContent = `ECHOSCRIPT AI TRANSCRIPTION\n================================\n\nSUMMARY:\n${data.summary}\n\nDETAILED TRANSCRIPT:\n\n${data.segments.map((segment, i) => `${i+1}. [${segment.timestamp}] ${segment.speaker}\n   Content: ${segment.content}\n   Language: ${segment.language}\n   Emotion: ${segment.emotion}${segment.translation ? `\n   Translation: ${segment.translation}` : ''}\n`).join('\n')}`;
+          
+          const blob = new Blob([textContent], { type: 'text/plain' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `transcript-${new Date().toISOString().slice(0,10)}.txt`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        };
+
         return (
           <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* Summary Section */}
-            <div className="bg-gradient-to-br from-indigo-50 to-white dark:from-slate-800 dark:to-slate-900 border border-indigo-100 dark:border-slate-700 rounded-2xl p-6 shadow-sm transition-colors duration-300">
-              <h2 className="text-lg font-semibold text-indigo-900 dark:text-indigo-200 mb-3">Summary</h2>
-              <p className="text-slate-700 dark:text-slate-300 leading-relaxed">{data.summary}</p>
+            <div className="bg-gradient-to-br from-indigo-50 to-white dark:from-slate-800 dark:to-slate-900 border border-indigo-100 dark:border-slate-700 rounded-2xl p-6 shadow-sm">
+              <div className="flex justify-between items-start mb-4">
+                <h2 className="text-xl font-bold text-indigo-900 dark:text-indigo-200 flex items-center">
+                  <Sparkles className="mr-2" size={20} />
+                  Summary
+                </h2>
+                <div className="flex gap-2">
+                  <Button 
+                    onClick={copyToClipboard} 
+                    variant="secondary" 
+                    className="text-sm"
+                  >
+                    {copied ? 'Copied!' : 'Copy'}
+                  </Button>
+                  <Button 
+                    onClick={downloadTranscript}
+                    variant="secondary"
+                    icon={<Download size={16} />}
+                    className="text-sm"
+                  >
+                    Download
+                  </Button>
+                </div>
+              </div>
+              <p className="text-slate-700 dark:text-slate-300 leading-relaxed text-lg">{data.summary}</p>
             </div>
 
             {/* Segments Section */}
             <div className="space-y-4">
-              <h2 className="text-lg font-semibold text-slate-900 dark:text-white px-1">Detailed Transcript</h2>
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white px-1 flex items-center">
+                <User className="mr-2" size={20} />
+                Detailed Transcript ({data.segments.length} segments)
+              </h2>
               
               {data.segments.map((segment, index) => (
                 <div 
                   key={index} 
-                  className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-5 hover:shadow-md transition-all duration-300"
+                  className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-5 hover:shadow-md transition-all duration-300 hover:border-indigo-200 dark:hover:border-slate-600"
                 >
-                  <div className="flex flex-wrap items-center gap-3 mb-3 text-sm text-slate-500 dark:text-slate-400">
-                    <div className="flex items-center font-semibold text-indigo-600 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-900/40 px-2 py-1 rounded">
+                  <div className="flex flex-wrap items-center gap-3 mb-4 text-sm">
+                    <div className="flex items-center font-semibold text-indigo-600 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-900/40 px-3 py-1.5 rounded-full">
                       <User size={14} className="mr-1.5" />
                       {segment.speaker}
                     </div>
-                    <div className="flex items-center bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded">
+                    <div className="flex items-center bg-slate-100 dark:bg-slate-700 px-3 py-1.5 rounded-full">
                       <Clock size={14} className="mr-1.5" />
                       {segment.timestamp}
                     </div>
-                    <div className="flex items-center bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded">
+                    <div className="flex items-center bg-slate-100 dark:bg-slate-700 px-3 py-1.5 rounded-full">
                       <Globe size={14} className="mr-1.5" />
                       {segment.language}
                     </div>
                     {segment.emotion && getEmotionBadge(segment.emotion)}
                   </div>
                   
-                  <p className="text-slate-800 dark:text-slate-200 leading-relaxed whitespace-pre-wrap">
+                  <p className="text-slate-800 dark:text-slate-200 leading-relaxed whitespace-pre-wrap text-lg mb-3">
                     {segment.content}
                   </p>
 
                   {segment.translation && (
-                    <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/30 -mx-5 -mb-5 px-5 pb-5 rounded-b-xl">
-                       <div className="flex items-center text-xs font-semibold text-indigo-600 dark:text-indigo-300 mb-1.5 uppercase tracking-wide pt-2">
-                          <Languages size={14} className="mr-1.5" />
+                    <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/30 -mx-5 -mb-5 px-5 pb-5 rounded-b-xl">
+                       <div className="flex items-center text-sm font-semibold text-indigo-600 dark:text-indigo-300 mb-2 uppercase tracking-wide">
+                          <Languages size={16} className="mr-2" />
                           English Translation
                        </div>
                        <p className="text-slate-600 dark:text-slate-400 italic leading-relaxed">
@@ -674,29 +819,45 @@
         );
       };
 
-      // --- MAIN APP ---
+      // --- MAIN APP COMPONENT ---
       function App() {
         const [mode, setMode] = useState('record');
-        const [status, setStatus] = useState('idle');
+        const [status, setStatus] = useState('idle'); // idle, processing, success, error
         const [audioData, setAudioData] = useState(null);
         const [result, setResult] = useState(null);
         const [error, setError] = useState(null);
+        const [showApiKeyModal, setShowApiKeyModal] = useState(false);
         
-        // Dark Mode
+        // Dark Mode State
         const [isDarkMode, setIsDarkMode] = useState(() => {
           if (typeof window !== 'undefined') {
-            return window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const saved = localStorage.getItem('darkMode');
+            return saved ? JSON.parse(saved) : window.matchMedia('(prefers-color-scheme: dark)').matches;
           }
           return false;
         });
 
+        // Check API key on mount
+        useEffect(() => {
+          const hasApiKey = !!getApiKey();
+          if (!hasApiKey) {
+            // Show API key modal after a brief delay if no key is set
+            const timer = setTimeout(() => {
+              setShowApiKeyModal(true);
+            }, 1000);
+            return () => clearTimeout(timer);
+          }
+        }, []);
+
+        // Dark Mode Effect
         useEffect(() => {
           if (isDarkMode) {
             document.documentElement.classList.add('dark');
-            // Update Meta Theme Color
+            localStorage.setItem('darkMode', 'true');
             document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#0f172a');
           } else {
             document.documentElement.classList.remove('dark');
+            localStorage.setItem('darkMode', 'false');
             document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#ffffff');
           }
         }, [isDarkMode]);
@@ -706,11 +867,18 @@
         const handleAudioReady = (data) => {
           setAudioData(data);
           setError(null);
-          setResult(null); 
+          setResult(null);
         };
 
         const handleTranscribe = async () => {
           if (!audioData) return;
+          
+          // Check for API key
+          if (!getApiKey()) {
+            setShowApiKeyModal(true);
+            return;
+          }
+          
           setStatus('processing');
           setError(null);
           try {
@@ -719,7 +887,7 @@
             setStatus('success');
           } catch (err) {
             console.error(err);
-            setError(err.message || "An error occurred during transcription.");
+            setError(err.message || "An unexpected error occurred during transcription.");
             setStatus('error');
           }
         };
@@ -731,54 +899,74 @@
           setError(null);
         };
 
-        // --- Share Functionality (APK Simulation) ---
-        const handleShareApp = async () => {
+        const handleSaveApiKey = (key) => {
+          setApiKey(key);
+          // If we were trying to transcribe, retry
+          if (status === 'processing' || audioData) {
+            handleTranscribe();
+          }
+        };
+
+        const handleShare = async () => {
+          const shareData = {
+            title: 'EchoScript AI - Audio Transcription',
+            text: 'Transcribe audio with speaker identification, emotion detection, and multilingual support.',
+            url: window.location.href,
+          };
+
           try {
-            // We'll just grab the current HTML file to share as an "APK"
-            const htmlContent = document.documentElement.outerHTML;
-            // Trick the intent with mime type and extension
-            const blob = new Blob([htmlContent], { type: 'application/vnd.android.package-archive' });
-            const file = new File([blob], "EchoScript_Installer.apk", { type: 'application/vnd.android.package-archive' });
-            
             if (navigator.share) {
-              await navigator.share({
-                files: [file],
-                title: 'Install EchoScript AI',
-                text: 'Turn your audio into accurate text with speaker diarization.'
-              });
+              await navigator.share(shareData);
             } else {
-              // Fallback for desktop/unsupported browsers
-              const a = document.createElement('a');
-              a.href = URL.createObjectURL(blob);
-              a.download = "EchoScript_Installer.apk";
-              document.body.appendChild(a);
-              a.click();
-              document.body.removeChild(a);
+              // Fallback: copy URL to clipboard
+              await navigator.clipboard.writeText(window.location.href);
+              alert('Link copied to clipboard!');
             }
-          } catch (e) {
-            console.log("Share cancelled or failed", e);
+          } catch (err) {
+            console.log('Sharing cancelled or failed:', err);
           }
         };
 
         return (
           <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 pb-20 transition-colors duration-300">
+            {/* API Key Modal */}
+            <ApiKeyModal 
+              isOpen={showApiKeyModal}
+              onClose={() => setShowApiKeyModal(false)}
+              onSave={handleSaveApiKey}
+            />
+
             {/* Header */}
-            <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-10 transition-colors duration-300">
-              <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <div className="bg-indigo-600 p-2 rounded-lg text-white shadow-lg shadow-indigo-500/30">
-                    <Sparkles size={20} />
+            <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-40 shadow-sm">
+              <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="bg-gradient-to-r from-indigo-600 to-violet-600 p-2 rounded-xl text-white shadow-lg shadow-indigo-500/30">
+                    <Sparkles size={22} />
                   </div>
-                  <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-violet-600 dark:from-indigo-400 dark:to-violet-400">
-                    EchoScript AI
-                  </h1>
+                  <div>
+                    <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-violet-600 dark:from-indigo-400 dark:to-violet-400">
+                      EchoScript AI
+                    </h1>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 hidden sm:block">
+                      Audio Transcription with AI
+                    </p>
+                  </div>
                 </div>
                 <div className="flex items-center space-x-2">
-                   <button
-                    onClick={handleShareApp}
-                    className="p-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    aria-label="Share App"
-                    title="Share App"
+                  <button
+                    onClick={() => setShowApiKeyModal(true)}
+                    className="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    aria-label="API Settings"
+                    title="API Settings"
+                  >
+                    <Key size={20} />
+                  </button>
+                  
+                  <button
+                    onClick={handleShare}
+                    className="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    aria-label="Share"
+                    title="Share"
                   >
                     <Share2 size={20} />
                   </button>
@@ -794,32 +982,62 @@
               </div>
             </header>
 
-            <main className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
+            <main className="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
               
-              {/* Intro */}
-              <div className="text-center mb-10">
-                <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-4">
-                  Turn your audio into accurate text
-                </h2>
+              {/* Hero Section */}
+              <div className="text-center mb-10 sm:mb-12">
+                <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 dark:text-white mb-4">
+                  Turn Audio into <span className="text-indigo-600 dark:text-indigo-400">Detailed Transcripts</span>
+                </h1>
                 <p className="text-lg text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
-                  Upload a file or record directly to get speaker-identified transcripts with timestamps and language detection instantly.
+                  Upload audio files or record directly to get transcripts with speaker identification, timestamps, emotion detection, and multilingual support.
                 </p>
               </div>
 
+              {/* API Key Warning */}
+              {!getApiKey() && (
+                <div className="mb-6 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 flex items-start">
+                  <AlertTriangle className="mr-3 flex-shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" size={20} />
+                  <div>
+                    <p className="text-amber-800 dark:text-amber-300 font-medium">API Key Required</p>
+                    <p className="text-amber-700 dark:text-amber-400 text-sm mt-1">
+                      You need a Gemini API key to use transcription. 
+                      <button 
+                        onClick={() => setShowApiKeyModal(true)}
+                        className="ml-1 underline font-medium"
+                      >
+                        Click here to set it up
+                      </button>
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {/* Status Error */}
               {status === 'error' && error && (
-                <div className="mb-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 flex items-start text-red-700 dark:text-red-400">
-                  <AlertTriangle className="mr-3 flex-shrink-0 mt-0.5" size={20} />
-                  <p>{error}</p>
+                <div className="mb-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 flex items-start">
+                  <AlertTriangle className="mr-3 flex-shrink-0 mt-0.5 text-red-600 dark:text-red-400" size={20} />
+                  <div>
+                    <p className="text-red-800 dark:text-red-300 font-medium">Transcription Error</p>
+                    <p className="text-red-700 dark:text-red-400 text-sm mt-1">{error}</p>
+                    {error.includes('API Key') && (
+                      <button 
+                        onClick={() => setShowApiKeyModal(true)}
+                        className="mt-2 text-sm underline font-medium"
+                      >
+                        Update API Key
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
 
               {/* Input Selection Tabs */}
-              {!result && (
-                  <div className="bg-white dark:bg-slate-900 p-1 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 inline-flex mb-8 w-full sm:w-auto transition-colors duration-300">
+              {!result && status !== 'processing' && (
+                  <div className="bg-white dark:bg-slate-900 p-1 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 flex mb-8 transition-colors duration-300">
                   <button
                       onClick={() => { setMode('record'); handleReset(); }}
-                      className={`flex-1 sm:flex-none flex items-center justify-center px-6 py-2.5 rounded-lg text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-offset-1 dark:focus:ring-offset-slate-900 focus:ring-indigo-500 ${
+                      className={`flex-1 flex items-center justify-center px-4 sm:px-6 py-3 rounded-lg text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-offset-1 dark:focus:ring-offset-slate-900 focus:ring-indigo-500 ${
                       mode === 'record' 
                           ? 'bg-indigo-600 text-white shadow-sm' 
                           : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
@@ -827,11 +1045,11 @@
                       disabled={status === 'processing'}
                   >
                       <Mic size={16} className="mr-2" />
-                      Record Audio
+                      Record
                   </button>
                   <button
                       onClick={() => { setMode('upload'); handleReset(); }}
-                      className={`flex-1 sm:flex-none flex items-center justify-center px-6 py-2.5 rounded-lg text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-offset-1 dark:focus:ring-offset-slate-900 focus:ring-indigo-500 ${
+                      className={`flex-1 flex items-center justify-center px-4 sm:px-6 py-3 rounded-lg text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-offset-1 dark:focus:ring-offset-slate-900 focus:ring-indigo-500 ${
                       mode === 'upload' 
                           ? 'bg-indigo-600 text-white shadow-sm' 
                           : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
@@ -839,7 +1057,7 @@
                       disabled={status === 'processing'}
                   >
                       <Upload size={16} className="mr-2" />
-                      Upload File
+                      Upload
                   </button>
                   </div>
               )}
@@ -849,7 +1067,7 @@
                 
                 {/* Input Section */}
                 {!result && status !== 'processing' && (
-                  <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 p-6 sm:p-8 transition-colors duration-300">
+                  <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 p-6 sm:p-8">
                     {mode === 'record' ? (
                       <AudioRecorder onAudioCaptured={handleAudioReady} disabled={status === 'processing'} />
                     ) : (
@@ -857,15 +1075,28 @@
                     )}
 
                     {audioData && (
-                      <div className="mt-6 flex justify-end pt-6 border-t border-slate-100 dark:border-slate-800">
-                        <Button 
-                          onClick={handleTranscribe} 
-                          isLoading={status === 'processing'}
-                          className="w-full sm:w-auto"
-                          icon={<Sparkles size={16} />}
-                        >
-                          Generate Transcript
-                        </Button>
+                      <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row justify-between items-center gap-4">
+                        <div className="text-sm text-slate-500 dark:text-slate-400">
+                          {mode === 'record' ? 'Recording captured' : 'File ready'} • Click to transcribe
+                        </div>
+                        <div className="flex gap-3 w-full sm:w-auto">
+                          <Button 
+                            onClick={handleReset}
+                            variant="secondary"
+                            className="flex-1 sm:flex-none"
+                          >
+                            Clear
+                          </Button>
+                          <Button 
+                            onClick={handleTranscribe} 
+                            isLoading={status === 'processing'}
+                            icon={<Sparkles size={18} />}
+                            className="flex-1 sm:flex-none"
+                            disabled={!getApiKey()}
+                          >
+                            Transcribe Audio
+                          </Button>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -873,38 +1104,100 @@
 
                 {/* Processing State */}
                 {status === 'processing' && (
-                  <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 p-12 text-center transition-colors duration-300">
+                  <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 p-10 sm:p-12 text-center">
                     <div className="flex justify-center mb-6">
                        <div className="relative">
-                          <div className="w-16 h-16 border-4 border-indigo-100 dark:border-indigo-900 border-t-indigo-600 dark:border-t-indigo-500 rounded-full animate-spin"></div>
+                          <div className="w-20 h-20 border-4 border-indigo-100 dark:border-indigo-900 border-t-indigo-600 dark:border-t-indigo-500 rounded-full animate-spin"></div>
                           <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center">
-                              <Sparkles size={24} className="text-indigo-600 dark:text-indigo-400 animate-pulse" />
+                              <Sparkles size={28} className="text-indigo-600 dark:text-indigo-400 animate-pulse-slow" />
                           </div>
                        </div>
                     </div>
-                    <h3 className="text-xl font-semibold text-slate-900 dark:text-white mb-2">Analyzing Audio...</h3>
+                    <h3 className="text-xl font-semibold text-slate-900 dark:text-white mb-3">Processing Audio...</h3>
                     <p className="text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
-                      Gemini is identifying speakers, detecting languages, and generating your transcript. This usually takes just a few seconds.
+                      Gemini AI is analyzing your audio. This may take 10-30 seconds depending on length.
                     </p>
+                    <div className="mt-6 inline-flex items-center text-sm text-slate-400">
+                      <div className="h-1 w-24 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                        <div className="h-full bg-indigo-500 animate-pulse w-3/4"></div>
+                      </div>
+                      <span className="ml-3">Processing</span>
+                    </div>
                   </div>
                 )}
 
                 {/* Results Section */}
                 {result && status === 'success' && (
-                  <div>
-                      <div className="flex justify-between items-center mb-6">
-                          <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Transcription Results</h2>
-                          <Button onClick={handleReset} variant="secondary">Start Over</Button>
+                  <div className="animate-in fade-in duration-500">
+                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+                          <div>
+                            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Transcription Complete</h2>
+                            <p className="text-slate-500 dark:text-slate-400 mt-1">
+                              {result.segments.length} segments • {result.summary.length > 100 ? 'Detailed' : 'Brief'} summary
+                            </p>
+                          </div>
+                          <div className="flex gap-3 w-full sm:w-auto">
+                            <Button onClick={handleReset} variant="secondary">
+                              Start New
+                            </Button>
+                            <Button 
+                              onClick={() => {
+                                const textToCopy = `Summary:\n${result.summary}\n\nTranscript:\n${result.segments.map(s => `[${s.timestamp}] ${s.speaker}: ${s.content}`).join('\n')}`;
+                                navigator.clipboard.writeText(textToCopy);
+                              }}
+                              variant="primary"
+                            >
+                              Copy All
+                            </Button>
+                          </div>
                       </div>
                       <TranscriptionDisplay data={result} />
                   </div>
                 )}
               </div>
 
-              {/* Disclaimer */}
-              <div className="mt-16 text-center text-xs text-slate-500 dark:text-slate-400 max-w-2xl mx-auto leading-relaxed border-t border-slate-200 dark:border-slate-800 pt-8 transition-colors duration-300">
-                  <p className="mb-2">
-                  By using this feature, you confirm that you have the necessary rights to any content that you upload. Your use of this generative AI service is subject to our <a href="https://policies.google.com/terms/generative-ai/use-policy" target="_blank" rel="noopener noreferrer" className="underline hover:text-slate-700 dark:hover:text-slate-300 transition-colors">Prohibited Use Policy</a>.
+              {/* Features & Info */}
+              <div className="mt-16 grid grid-cols-1 sm:grid-cols-3 gap-6">
+                <div className="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700">
+                  <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg w-fit mb-4">
+                    <User size={20} />
+                  </div>
+                  <h3 className="font-semibold text-slate-900 dark:text-white mb-2">Speaker Identification</h3>
+                  <p className="text-sm text-slate-600 dark:text-slate-400">Automatically detects different speakers in conversations</p>
+                </div>
+                <div className="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700">
+                  <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg w-fit mb-4">
+                    <Globe size={20} />
+                  </div>
+                  <h3 className="font-semibold text-slate-900 dark:text-white mb-2">Multilingual</h3>
+                  <p className="text-sm text-slate-600 dark:text-slate-400">Supports 100+ languages with automatic translation</p>
+                </div>
+                <div className="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700">
+                  <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg w-fit mb-4">
+                    <Smile size={20} />
+                  </div>
+                  <h3 className="font-semibold text-slate-900 dark:text-white mb-2">Emotion Detection</h3>
+                  <p className="text-sm text-slate-600 dark:text-slate-400">Identifies speaker emotions (Happy, Sad, Angry, Neutral)</p>
+                </div>
+              </div>
+
+              {/* Footer & Disclaimer */}
+              <div className="mt-16 text-center text-xs text-slate-500 dark:text-slate-400 max-w-2xl mx-auto leading-relaxed border-t border-slate-200 dark:border-slate-800 pt-8">
+                  <p className="mb-3">
+                    This tool uses Google's Gemini AI for transcription. Your audio is processed directly by Google's servers.
+                    Your API key is stored locally in your browser and never sent to any server except Google's.
+                  </p>
+                  <p className="mb-4">
+                    By using this tool, you agree to Google's{' '}
+                    <a href="https://policies.google.com/terms/generative-ai/use-policy" target="_blank" rel="noopener noreferrer" className="underline hover:text-slate-700 dark:hover:text-slate-300 transition-colors">
+                      Generative AI Prohibited Use Policy
+                    </a>.
+                  </p>
+                  <p>
+                    © {new Date().getFullYear()} EchoScript AI • 
+                    <a href="https://github.com" target="_blank" rel="noopener noreferrer" className="ml-1 underline hover:text-slate-700 dark:hover:text-slate-300 transition-colors">
+                      Open Source Project
+                    </a>
                   </p>
               </div>
 
@@ -913,17 +1206,32 @@
         );
       }
 
+      // Initialize React App
       const rootElement = document.getElementById('root');
       if (!rootElement) {
-        throw new Error("Could not find root element to mount to");
+        console.error("Root element not found");
+        document.body.innerHTML = '<div class="p-8 text-center text-red-600">Error: Could not find root element</div>';
+      } else {
+        try {
+          const root = ReactDOM.createRoot(rootElement);
+          root.render(
+            <React.StrictMode>
+              <App />
+            </React.StrictMode>
+          );
+        } catch (error) {
+          console.error("Failed to render React app:", error);
+          rootElement.innerHTML = `
+            <div class="min-h-screen flex items-center justify-center p-8">
+              <div class="text-center max-w-md">
+                <h1 class="text-2xl font-bold text-red-600 mb-4">Application Error</h1>
+                <p class="text-slate-600 mb-4">Failed to load the application. Please check your browser console for details.</p>
+                <p class="text-sm text-slate-500">Error: ${error.message}</p>
+              </div>
+            </div>
+          `;
+        }
       }
-
-      const root = ReactDOM.createRoot(rootElement);
-      root.render(
-        <React.StrictMode>
-          <App />
-        </React.StrictMode>
-      );
     </script>
   </body>
 </html>
