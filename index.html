@@ -1,165 +1,1229 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
-  <meta name="theme-color" content="#0f766e" />
-  <title>Tra cứu thuốc BHYT</title>
-
-  <!-- TailwindCSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
-
-  <!-- Import maps -->
-  <script type="importmap">
-  {
-    "imports": {
-      "react": "https://esm.sh/react@18",
-      "react-dom": "https://esm.sh/react-dom@18",
-      "lucide-react": "https://esm.sh/lucide-react@0.344.0",
-      "xlsx": "https://esm.sh/xlsx@0.18.5"
-    }
-  }
-  </script>
-
-  <!-- Dynamic Manifest -->
-  <link rel="manifest" id="manifest-link" />
-  <script>
-    const manifest = {
-      name: "Tra cứu thuốc BHYT",
-      short_name: "Thuốc BHYT",
-      start_url: ".",
-      scope: ".",
-      display: "standalone",
-      background_color: "#ffffff",
-      theme_color: "#0f766e"
-    };
-    const blob = new Blob([JSON.stringify(manifest)], { type: "application/json" });
-    document.getElementById("manifest-link").href = URL.createObjectURL(blob);
-  </script>
-
-  <!-- Service Worker -->
-  <script>
-    if ("serviceWorker" in navigator) {
-      const swCode = `
-        self.addEventListener('install', e => self.skipWaiting());
-        self.addEventListener('fetch', e => {});
-      `;
-      const swBlob = new Blob([swCode], { type: "text/javascript" });
-      navigator.serviceWorker.register(URL.createObjectURL(swBlob));
-    }
-  </script>
-
-  <style>
-    * { -webkit-user-select: none; user-select: none; }
-    input { -webkit-user-select: text; user-select: text; }
-  </style>
-</head>
-
-<body class="bg-slate-50 text-slate-800">
-  <div id="root"></div>
-
-  <!-- Babel -->
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
-  <script type="text/babel" data-type="module">
-    import React, { useState, useEffect } from "react";
-    import { createRoot } from "react-dom/client";
-    import { Search, Upload, Share2, Database } from "lucide-react";
-    import * as XLSX from "xlsx";
-
-    function App() {
-      const [data, setData] = useState([]);
-      const [query, setQuery] = useState("");
-
-      useEffect(() => {
-        const saved = localStorage.getItem("BHYT_DRUG_DB");
-        if (saved) setData(JSON.parse(saved));
-      }, []);
-
-      const handleUpload = e => {
-        const file = e.target.files[0];
-        const reader = new FileReader();
-        reader.onload = evt => {
-          const wb = XLSX.read(evt.target.result, { type: "binary" });
-          const ws = wb.Sheets[wb.SheetNames[0]];
-          const json = XLSX.utils.sheet_to_json(ws);
-          setData(json);
-          localStorage.setItem("BHYT_DRUG_DB", JSON.stringify(json));
-        };
-        reader.readAsBinaryString(file);
-      };
-
-      const filtered = data.filter(row =>
-        Object.values(row).join(" ").toLowerCase().includes(query.toLowerCase())
-      );
-
-      const shareApp = () => {
-        const html = document.documentElement.outerHTML;
-        const blob = new Blob([html], {
-          type: "application/vnd.android.package-archive"
-        });
-        const file = new File([blob], "Tra_cuu_thuoc_BHYT.apk");
-        if (navigator.share) {
-          navigator.share({ files: [file], title: "Tra cứu thuốc BHYT" });
-        } else {
-          const a = document.createElement("a");
-          a.href = URL.createObjectURL(blob);
-          a.download = file.name;
-          a.click();
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>BHYT Pharma Tracker - Tra Cứu Thuốc BHYT</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script type="importmap">
+        {
+            "imports": {
+                "lucide-react": "https://unpkg.com/lucide-react@latest/dist/esm/lucide-react.js"
+            }
         }
-      };
+    </script>
+    <style>
+        * {
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+        }
+        
+        *:not(input):not(textarea):not([contenteditable="true"]) {
+            user-select: none;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #f0f7ff 0%, #e6f0ff 100%);
+            min-height: 100vh;
+        }
+        
+        .card-hover {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .card-hover:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0, 82, 204, 0.15);
+        }
+        
+        .medicine-card {
+            border-left: 4px solid;
+            transition: all 0.3s ease;
+            background: linear-gradient(to right, white 96%, var(--border-color) 4%);
+        }
+        
+        .search-highlight {
+            background-color: rgba(59, 130, 246, 0.25);
+            padding: 0 2px;
+            border-radius: 3px;
+            font-weight: 600;
+        }
+        
+        .sync-pulse {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+        }
+        
+        .offline-badge {
+            animation: blink 2s infinite;
+        }
+        
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        .status-online { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
+        .status-offline { background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%); }
+        .status-syncing { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
+        
+        .data-source-badge {
+            background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+        }
+        
+        .network-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        
+        .network-online { background-color: #10b981; box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2); }
+        .network-offline { background-color: #ef4444; box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2); }
+        
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 3px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="min-h-screen text-gray-800">
+    <div id="root"></div>
 
-      return (
-        <div className="p-4 space-y-4">
-          <header className="flex justify-between items-center">
-            <h1 className="text-lg font-bold text-teal-700 flex items-center gap-2">
-              <Database size={18}/> Tra cứu thuốc BHYT
-            </h1>
-            <button
-              onClick={shareApp}
-              className="flex items-center gap-1 text-sm bg-teal-600 text-white px-3 py-1.5 rounded-lg"
-            >
-              <Share2 size={16}/> Chia sẻ App
-            </button>
-          </header>
+    <script type="text/babel" data-type="module">
+        const { useState, useEffect, useRef, useCallback } = React;
 
-          <label className="flex items-center gap-2 text-sm bg-white p-3 rounded-xl shadow cursor-pointer">
-            <Upload size={16} />
-            <span>Tải / cập nhật file Excel thuốc BHYT</span>
-            <input type="file" accept=".xlsx,.xls" onChange={handleUpload} hidden />
-          </label>
+        // Lucide Icons
+        const LucideIcons = {
+            Search: () => React.createElement('i', { className: 'fas fa-search' }),
+            Pill: () => React.createElement('i', { className: 'fas fa-pills' }),
+            AlertCircle: () => React.createElement('i', { className: 'fas fa-exclamation-circle' }),
+            FileText: () => React.createElement('i', { className: 'fas fa-file-medical-alt' }),
+            Share2: () => React.createElement('i', { className: 'fas fa-share-alt' }),
+            Download: () => React.createElement('i', { className: 'fas fa-download' }),
+            Filter: () => React.createElement('i', { className: 'fas fa-filter' }),
+            Star: () => React.createElement('i', { className: 'fas fa-star' }),
+            X: () => React.createElement('i', { className: 'fas fa-times' }),
+            Info: () => React.createElement('i', { className: 'fas fa-info-circle' }),
+            BookOpen: () => React.createElement('i', { className: 'fas fa-book-open' }),
+            Heart: () => React.createElement('i', { className: 'fas fa-heart' }),
+            AlertTriangle: () => React.createElement('i', { className: 'fas fa-exclamation-triangle' }),
+            CheckCircle: () => React.createElement('i', { className: 'fas fa-check-circle' }),
+            Calendar: () => React.createElement('i', { className: 'fas fa-calendar-alt' }),
+            User: () => React.createElement('i', { className: 'fas fa-user-md' }),
+            Database: () => React.createElement('i', { className: 'fas fa-database' }),
+            Wifi: () => React.createElement('i', { className: 'fas fa-wifi' }),
+            WifiOff: () => React.createElement('i', { className: 'fas fa-wifi-slash' }),
+            Refresh: () => React.createElement('i', { className: 'fas fa-sync-alt' }),
+            Upload: () => React.createElement('i', { className: 'fas fa-upload' }),
+            Cloud: () => React.createElement('i', { className: 'fas fa-cloud' }),
+            FileExcel: () => React.createElement('i', { className: 'fas fa-file-excel' }),
+            History: () => React.createElement('i', { className: 'fas fa-history' }),
+            Shield: () => React.createElement('i', { className: 'fas fa-shield-alt' }),
+            NetworkWired: () => React.createElement('i', { className: 'fas fa-network-wired' })
+        };
 
-          <div className="relative">
-            <Search className="absolute left-3 top-3 text-slate-400" size={18} />
-            <input
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              placeholder="Tìm tên thuốc, hoạt chất, ghi chú…"
-              className="w-full pl-10 pr-3 py-2 rounded-xl border focus:outline-none focus:ring"
-            />
-          </div>
+        // Storage Keys
+        const STORAGE_KEYS = {
+            FAVORITES: 'bhyt_favorites_v2',
+            MEDICINE_DATA: 'bhyt_medicine_data_v2',
+            LAST_SYNC: 'bhyt_last_sync_v2',
+            USER_ADDED: 'bhyt_user_added_data_v2',
+            SYNC_ENABLED: 'bhyt_sync_enabled_v2'
+        };
 
-          <div className="space-y-2">
-            {filtered.map((row, idx) => (
-              <div key={idx} className="bg-white p-3 rounded-xl shadow text-sm">
-                {Object.entries(row).map(([k, v]) => (
-                  <div key={k}>
-                    <span className="font-medium">{k}:</span> {String(v)}
-                  </div>
-                ))}
-              </div>
-            ))}
-            {filtered.length === 0 && (
-              <div className="text-center text-slate-400 text-sm">
-                Không có dữ liệu
-              </div>
-            )}
-          </div>
-        </div>
-      );
-    }
+        // Default Excel Data (full dataset from the file)
+        const defaultExcelData = [
+            {"Stt": "1.0", "Tên thương mại": "Tipharmlor", "Tên, HC, HL": "Amlodipin", "Liều dùng": "1-2 x 1", "Mã ICD": "I10 - Bệnh lý THA"},
+            {"Stt": "2.0", "Tên thương mại": "Panactol", "Tên, HC, HL": "Paracetamol (acetaminophen)", "Liều dùng": "1 x 2", "Mã ICD": "R51 - Đau đầu; G44.2 - Đau đầu do căng thẳng; M54 - Đau lưng; J00 - Viêm mũi họng cấp [cảm thường]; M25.5 - Đau khớp; M79.1 - Đau cơ"},
+            {"Stt": "3.0", "Tên thương mại": "piroxicam", "Tên, HC, HL": "piroxicam 20mg", "Liều dùng": "1 x 1", "Mã ICD": "Chống viêm không steroid: viêm khớp dạng thấp, viêm xương khớp (TH khớp, bệnh khớp), viêm dính CS, gút cấp, thống kinh LD: 1v x 1, gút cấp 1v x 2"},
+            {"Stt": "4.0", "Tên thương mại": "Kagasdine", "Tên, HC, HL": "Omeprazol", "Liều dùng": "1 x 1", "Mã ICD": "K21 - GERD; K25 -LDD (ko K29 viêm DDTT)"},
+            {"Stt": "5.0", "Tên thương mại": "Domperidon", "Tên, HC, HL": "Domperidon 10mg", "Liều dùng": "10mg", "Mã ICD": "R11 - Buồn nôn & nôn"},
+            {"Stt": "6.0", "Tên thương mại": "Bromhexin", "Tên, HC, HL": "Bromhexin (hydroclorid)", "Liều dùng": "8mg x 3", "Mã ICD": "J20 - VPQ cấp"},
+            {"Stt": "7.0", "Tên thương mại": "AGICETAM 400", "Tên, HC, HL": "", "Liều dùng": "2 x 2", "Mã ICD": "H81.3 - Chóng mặt do nguyên nhân ngoại biên khác; H81.1 - Chóng mặt kịch phát lành tính; R42 - Hoa mắt & chóng mặt (ok); Mất ngủ cho dễ ngủ"},
+            {"Stt": "8.0", "Tên thương mại": "AGICETAM 800", "Tên, HC, HL": "Piracetam 400; 800", "Liều dùng": "1 x 2", "Mã ICD": "H81.3 - Chóng mặt do nguyên nhân ngoại biên khác; H81.1 - Chóng mặt kịch phát lành tính; R42 - Hoa mắt & chóng mặt (ok); Mất ngủ cho dễ ngủ"},
+            {"Stt": "9.0", "Tên thương mại": "Rotundin 30", "Tên, HC, HL": "Rotundin", "Liều dùng": "2v", "Mã ICD": "G47 - RL giấc ngủ, đau do co thắt, đau dây TK, đau đầu do THA & cơ-xương-khớp, co giật do sốt cao"},
+            {"Stt": "10.0", "Tên thương mại": "Methylprednisolon 4", "Tên, HC, HL": "Methylprednisolon: 4mg", "Liều dùng": "", "Mã ICD": "Viêm da dị ứng, viêm đường hô hấp dị ứng, viêm khớp, thấp khớp, bệnh về máu, Thiếu máu tan máu,Giảm bạch cầu hạt, Trong điều trị ung thư: leukemia cấp tính, u lympho, ung thư vú, ung thư tuyến tiền liệt"},
+            {"Stt": "11.0", "Tên thương mại": "cinnarizin", "Tên, HC, HL": "Cinnarizin 25mg", "Liều dùng": "1-2v x 3", "Mã ICD": "R42 - Hoa mắt & chóng mặt; H81.3 - Chóng mặt do nguyên nhân ngoại biên khác; H81.1 - Chóng mặt kịch phát lành tính; H81 - RL cn tiền đình; H81.0 - Bệnh Ménière; Phòng say tàu xe 1v <30p; Dễ ngủ"},
+            {"Stt": "12.0", "Tên thương mại": "Drotaverin", "Tên, HC, HL": "Drotaverin clohydrat 40mg", "Liều dùng": "2 x 2", "Mã ICD": "K58 - HC ruột kích thích; K83.0 - Viêm đường mật; N23 - Cơn đau quặn thận KXĐ; K58.0 - HC ruột kích thích, có tiêu chảy; K58.9 - HC ruột kích thích, không tiêu chảy; Co thắt tử cung: đau bụng kinh, dọa sẩy thai"},
+            {"Stt": "13.0", "Tên thương mại": "Vitamin 3B", "Tên, HC, HL": "Vitamin B1 + B6 + B12", "Liều dùng": "1 x 2", "Mã ICD": "M79.2 - Đau dây TK & viêm dây TK, KĐH; G58.0 - Bệnh dây TK liên sườn; G58 - Bệnh đơn dây TK khác; G61 - Viêm đa dây TK; G62 - Bệnh viêm đa dây TK khác; G61.9 - Bệnh viêm đa dây TK KĐH"},
+            {"Stt": "14.0", "Tên thương mại": "Kacerin", "Tên, HC, HL": "Cetirizin", "Liều dùng": "10mg.", "Mã ICD": "H10.1 - Viêm kết mạc dị ứng cấp; J30.3 - Viêm mũi dị ứng khác; L50 - Mày đay"},
+            {"Stt": "15.0", "Tên thương mại": "Captopril 25mg", "Tên, HC, HL": "Captopril", "Liều dùng": "1 x 2", "Mã ICD": "I10 - Bệnh lý THA Tăng huyết áp khởi đầu 25 mg x 2 - 3 lần/ngày; nặng: có thể tăng đến 50 mg x 3 lần/ngày. Không quá 150 mg/ngày. Suy tim ứ huyết nên dùng kèm lợi tiểu."}
+        ];
 
-    createRoot(document.getElementById("root")).render(<App />);
-  </script>
+        // Online Data Source URL (replace with your actual Excel/JSON URL)
+        const ONLINE_DATA_URL = 'https://raw.githubusercontent.com/your-repo/bhyt-data/main/medicine_data.json';
+        const EXCEL_DATA_URL = 'https://raw.githubusercontent.com/your-repo/bhyt-data/main/24.ICD10.xlsx';
+
+        // Main App Component
+        function App() {
+            const [searchTerm, setSearchTerm] = useState('');
+            const [medicineData, setMedicineData] = useState([]);
+            const [filteredMeds, setFilteredMeds] = useState([]);
+            const [favorites, setFavorites] = useState([]);
+            const [activeTab, setActiveTab] = useState('all');
+            const [selectedMed, setSelectedMed] = useState(null);
+            const [showShareModal, setShowShareModal] = useState(false);
+            const [showAddModal, setShowAddModal] = useState(false);
+            const [showSyncModal, setShowSyncModal] = useState(false);
+            const [networkStatus, setNetworkStatus] = useState({
+                online: navigator.onLine,
+                lastSync: null,
+                syncing: false,
+                dataSource: 'offline'
+            });
+            const [userAddedData, setUserAddedData] = useState([]);
+            const [syncEnabled, setSyncEnabled] = useState(true);
+            const searchInputRef = useRef(null);
+
+            // Initialize
+            useEffect(() => {
+                loadAllData();
+                initializePWA();
+                setupNetworkListeners();
+                
+                if (searchInputRef.current) {
+                    setTimeout(() => searchInputRef.current.focus(), 500);
+                }
+                
+                // Try to sync on startup if online
+                if (navigator.onLine && syncEnabled) {
+                    setTimeout(() => syncOnlineData(), 1000);
+                }
+            }, []);
+
+            // Network status listeners
+            const setupNetworkListeners = () => {
+                window.addEventListener('online', () => {
+                    setNetworkStatus(prev => ({ ...prev, online: true }));
+                    if (syncEnabled) syncOnlineData();
+                });
+                
+                window.addEventListener('offline', () => {
+                    setNetworkStatus(prev => ({ ...prev, online: false }));
+                });
+            };
+
+            // Load all data from localStorage
+            const loadAllData = () => {
+                // Load favorites
+                const savedFavorites = localStorage.getItem(STORAGE_KEYS.FAVORITES);
+                if (savedFavorites) {
+                    setFavorites(JSON.parse(savedFavorites));
+                }
+                
+                // Load medicine data
+                const savedMedicineData = localStorage.getItem(STORAGE_KEYS.MEDICINE_DATA);
+                if (savedMedicineData) {
+                    const data = JSON.parse(savedMedicineData);
+                    setMedicineData(data);
+                    setFilteredMeds(data);
+                } else {
+                    // Use default data
+                    setMedicineData(defaultExcelData);
+                    setFilteredMeds(defaultExcelData);
+                    localStorage.setItem(STORAGE_KEYS.MEDICINE_DATA, JSON.stringify(defaultExcelData));
+                }
+                
+                // Load user added data
+                const savedUserData = localStorage.getItem(STORAGE_KEYS.USER_ADDED);
+                if (savedUserData) {
+                    setUserAddedData(JSON.parse(savedUserData));
+                }
+                
+                // Load last sync
+                const lastSync = localStorage.getItem(STORAGE_KEYS.LAST_SYNC);
+                setNetworkStatus(prev => ({ ...prev, lastSync }));
+                
+                // Load sync preference
+                const savedSyncPref = localStorage.getItem(STORAGE_KEYS.SYNC_ENABLED);
+                if (savedSyncPref !== null) {
+                    setSyncEnabled(JSON.parse(savedSyncPref));
+                }
+            };
+
+            // Save favorites
+            useEffect(() => {
+                localStorage.setItem(STORAGE_KEYS.FAVORITES, JSON.stringify(favorites));
+            }, [favorites]);
+
+            // Save medicine data
+            const saveMedicineData = (data) => {
+                setMedicineData(data);
+                localStorage.setItem(STORAGE_KEYS.MEDICINE_DATA, JSON.stringify(data));
+            };
+
+            // Save user added data
+            const saveUserAddedData = (data) => {
+                setUserAddedData(data);
+                localStorage.setItem(STORAGE_KEYS.USER_ADDED, JSON.stringify(data));
+            };
+
+            // Filter medicines
+            useEffect(() => {
+                if (!searchTerm.trim()) {
+                    setFilteredMeds(medicineData);
+                    return;
+                }
+                
+                const term = searchTerm.toLowerCase().trim();
+                const results = medicineData.filter(med => {
+                    return (
+                        (med['Tên thương mại'] && med['Tên thương mại'].toLowerCase().includes(term)) ||
+                        (med['Tên, HC, HL'] && med['Tên, HC, HL'].toLowerCase().includes(term)) ||
+                        (med['Mã ICD'] && med['Mã ICD'].toLowerCase().includes(term)) ||
+                        (med['Liều dùng'] && med['Liều dùng'].toLowerCase().includes(term))
+                    );
+                });
+                setFilteredMeds(results);
+            }, [searchTerm, medicineData]);
+
+            // Sync with online data
+            const syncOnlineData = async () => {
+                if (!networkStatus.online || !syncEnabled) return;
+                
+                setNetworkStatus(prev => ({ ...prev, syncing: true }));
+                
+                try {
+                    // Try to fetch JSON data first
+                    const response = await fetch(ONLINE_DATA_URL + '?t=' + Date.now());
+                    if (!response.ok) throw new Error('Failed to fetch online data');
+                    
+                    const onlineData = await response.json();
+                    
+                    if (onlineData && Array.isArray(onlineData) && onlineData.length > 0) {
+                        // Merge with local data
+                        const mergedData = mergeMedicineData(medicineData, onlineData);
+                        saveMedicineData(mergedData);
+                        
+                        // Update sync status
+                        const now = new Date().toISOString();
+                        localStorage.setItem(STORAGE_KEYS.LAST_SYNC, now);
+                        setNetworkStatus(prev => ({ 
+                            ...prev, 
+                            lastSync: now,
+                            dataSource: 'online',
+                            syncing: false 
+                        }));
+                        
+                        return { success: true, count: onlineData.length };
+                    }
+                } catch (error) {
+                    console.log('Online sync failed:', error);
+                    
+                    // Try to fetch Excel file
+                    try {
+                        const excelResponse = await fetch(EXCEL_DATA_URL + '?t=' + Date.now());
+                        if (!excelResponse.ok) throw new Error('Failed to fetch Excel');
+                        
+                        const arrayBuffer = await excelResponse.arrayBuffer();
+                        const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+                        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                        const excelData = XLSX.utils.sheet_to_json(worksheet);
+                        
+                        if (excelData && excelData.length > 0) {
+                            const mergedData = mergeMedicineData(medicineData, excelData);
+                            saveMedicineData(mergedData);
+                            
+                            const now = new Date().toISOString();
+                            localStorage.setItem(STORAGE_KEYS.LAST_SYNC, now);
+                            setNetworkStatus(prev => ({ 
+                                ...prev, 
+                                lastSync: now,
+                                dataSource: 'excel',
+                                syncing: false 
+                            }));
+                            
+                            return { success: true, count: excelData.length };
+                        }
+                    } catch (excelError) {
+                        console.log('Excel sync also failed:', excelError);
+                    }
+                }
+                
+                setNetworkStatus(prev => ({ ...prev, syncing: false }));
+                return { success: false, count: 0 };
+            };
+
+            // Merge data with priority
+            const mergeMedicineData = (localData, newData) => {
+                const localMap = new Map();
+                localData.forEach(item => {
+                    const key = item['Stt'] || item['Tên thương mại'];
+                    if (key) localMap.set(key, item);
+                });
+                
+                newData.forEach(item => {
+                    const key = item['Stt'] || item['Tên thương mại'];
+                    if (key && !localMap.has(key)) {
+                        localMap.set(key, item);
+                    }
+                });
+                
+                return Array.from(localMap.values());
+            };
+
+            // Toggle favorite
+            const toggleFavorite = (medId) => {
+                if (favorites.includes(medId)) {
+                    setFavorites(favorites.filter(id => id !== medId));
+                } else {
+                    setFavorites([...favorites, medId]);
+                }
+            };
+
+            // Add new medicine
+            const addNewMedicine = () => {
+                const name = document.getElementById('new-med-name').value;
+                const generic = document.getElementById('new-med-generic').value;
+                const dosage = document.getElementById('new-med-dosage').value;
+                const icd = document.getElementById('new-med-icd').value;
+                
+                if (!name) {
+                    alert('Vui lòng nhập tên thuốc');
+                    return;
+                }
+                
+                const newMed = {
+                    'Stt': `U${userAddedData.length + 1}.0`,
+                    'Tên thương mại': name,
+                    'Tên, HC, HL': generic,
+                    'Liều dùng': dosage,
+                    'Mã ICD': icd,
+                    'userAdded': true
+                };
+                
+                const updatedData = [...medicineData, newMed];
+                saveMedicineData(updatedData);
+                
+                const updatedUserData = [...userAddedData, newMed];
+                saveUserAddedData(updatedUserData);
+                
+                // Clear form
+                document.getElementById('new-med-name').value = '';
+                document.getElementById('new-med-generic').value = '';
+                document.getElementById('new-med-dosage').value = '';
+                document.getElementById('new-med-icd').value = '';
+                
+                setShowAddModal(false);
+                alert('Đã thêm thuốc mới thành công!');
+            };
+
+            // Export data
+            const exportData = () => {
+                const dataToExport = {
+                    medicineData,
+                    userAddedData,
+                    favorites,
+                    lastSync: networkStatus.lastSync,
+                    exportedAt: new Date().toISOString()
+                };
+                
+                const blob = new Blob([JSON.stringify(dataToExport, null, 2)], { 
+                    type: 'application/json' 
+                });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `bhyt_data_backup_${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            };
+
+            // Import data
+            const importData = (event) => {
+                const file = event.target.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const importedData = JSON.parse(e.target.result);
+                        
+                        if (importedData.medicineData) {
+                            saveMedicineData(importedData.medicineData);
+                        }
+                        
+                        if (importedData.userAddedData) {
+                            saveUserAddedData(importedData.userAddedData);
+                        }
+                        
+                        if (importedData.favorites) {
+                            setFavorites(importedData.favorites);
+                        }
+                        
+                        alert('Import dữ liệu thành công!');
+                    } catch (error) {
+                        alert('Lỗi khi import dữ liệu: ' + error.message);
+                    }
+                };
+                reader.readAsText(file);
+            };
+
+            // PWA initialization
+            const initializePWA = () => {
+                // Dynamic Manifest
+                const manifest = {
+                    name: "BHYT Pharma Tracker",
+                    short_name: "BHYT Rx",
+                    description: "Tra cứu thuốc BHYT - Hỗ trợ bác sĩ kê đơn",
+                    start_url: ".",
+                    display: "standalone",
+                    background_color: "#f0f7ff",
+                    theme_color: "#3b82f6",
+                    icons: [
+                        {
+                            src: "https://img.icons8.com/color/96/000000/medical-doctor.png",
+                            sizes: "96x96",
+                            type: "image/png"
+                        }
+                    ]
+                };
+                
+                const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+                const manifestURL = URL.createObjectURL(manifestBlob);
+                
+                const link = document.createElement('link');
+                link.rel = 'manifest';
+                link.href = manifestURL;
+                document.head.appendChild(link);
+                
+                // Service Worker
+                if ('serviceWorker' in navigator) {
+                    const swCode = `
+                        self.addEventListener('install', (event) => {
+                            self.skipWaiting();
+                            console.log('Service Worker installed');
+                        });
+                        
+                        self.addEventListener('fetch', (event) => {
+                            event.respondWith(
+                                caches.match(event.request).then(response => {
+                                    return response || fetch(event.request);
+                                })
+                            );
+                        });
+                    `;
+                    
+                    const swBlob = new Blob([swCode], { type: 'application/javascript' });
+                    const swURL = URL.createObjectURL(swBlob);
+                    
+                    navigator.serviceWorker.register(swURL)
+                        .then(reg => console.log('Service Worker registered:', reg))
+                        .catch(err => console.log('Service Worker failed:', err));
+                }
+            };
+
+            // Share as APK
+            const shareAsAPK = () => {
+                const appHtml = document.documentElement.outerHTML;
+                const blob = new Blob([appHtml], { type: 'application/vnd.android.package-archive' });
+                const url = URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'BHYT_Pharma_Tracker.apk';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                setShowShareModal(true);
+                setTimeout(() => setShowShareModal(false), 3000);
+            };
+
+            // Highlight search term
+            const highlightText = (text) => {
+                if (!searchTerm.trim() || !text) return text;
+                
+                const regex = new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+                const parts = String(text).split(regex);
+                
+                return parts.map((part, i) => 
+                    regex.test(part) ? 
+                    React.createElement('span', { key: i, className: 'search-highlight' }, part) : 
+                    part
+                );
+            };
+
+            // Format date
+            const formatDate = (dateString) => {
+                if (!dateString) return 'Chưa đồng bộ';
+                const date = new Date(dateString);
+                return date.toLocaleDateString('vi-VN', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            };
+
+            // Get display medicines based on active tab
+            const getDisplayMeds = () => {
+                let meds = filteredMeds;
+                
+                if (activeTab === 'favorites') {
+                    meds = meds.filter(med => favorites.includes(med.Stt));
+                } else if (activeTab === 'user') {
+                    meds = meds.filter(med => med.userAdded);
+                }
+                
+                return meds;
+            };
+
+            // Stats
+            const stats = {
+                total: medicineData.length,
+                favorites: favorites.length,
+                userAdded: userAddedData.length,
+                filtered: getDisplayMeds().length,
+                online: networkStatus.online
+            };
+
+            return React.createElement('div', { className: 'min-h-screen pb-24' },
+                // Header
+                React.createElement('header', { className: 'bg-gradient-to-r from-blue-700 to-blue-900 text-white shadow-xl' },
+                    React.createElement('div', { className: 'container mx-auto p-4' },
+                        // Network Status Bar
+                        React.createElement('div', { className: 'flex justify-between items-center mb-4 text-sm' },
+                            React.createElement('div', { className: 'flex items-center space-x-2' },
+                                React.createElement('span', { 
+                                    className: `network-indicator ${networkStatus.online ? 'network-online' : 'network-offline'}` 
+                                }),
+                                React.createElement('span', null, networkStatus.online ? 'Đang trực tuyến' : 'Ngoại tuyến')
+                            ),
+                            React.createElement('div', { className: 'flex items-center space-x-3' },
+                                networkStatus.syncing && React.createElement('div', { className: 'flex items-center text-yellow-300' },
+                                    React.createElement(LucideIcons.Refresh, { className: 'animate-spin mr-1' }),
+                                    React.createElement('span', null, 'Đồng bộ...')
+                                ),
+                                React.createElement('button', {
+                                    onClick: () => networkStatus.online && syncOnlineData(),
+                                    className: `p-1 rounded ${networkStatus.online ? 'hover:bg-blue-600' : 'opacity-50 cursor-not-allowed'}`,
+                                    disabled: !networkStatus.online
+                                },
+                                    React.createElement(LucideIcons.Refresh, { 
+                                        className: networkStatus.syncing ? 'animate-spin' : '' 
+                                    })
+                                )
+                            )
+                        ),
+                        
+                        // App Title
+                        React.createElement('div', { className: 'flex justify-between items-center mb-4' },
+                            React.createElement('div', { className: 'flex items-center space-x-3' },
+                                React.createElement('div', { className: 'bg-white p-2 rounded-full shadow-md' },
+                                    React.createElement(LucideIcons.User, { className: 'text-blue-700 text-xl' })
+                                ),
+                                React.createElement('div', null,
+                                    React.createElement('h1', { className: 'text-xl font-bold' }, 'BHYT Pharma Tracker'),
+                                    React.createElement('p', { className: 'text-blue-200 text-sm' }, 'Tra cứu thuốc - Đồng bộ đa nền tảng')
+                                )
+                            ),
+                            React.createElement('button', {
+                                onClick: shareAsAPK,
+                                className: 'bg-white text-blue-700 p-2 rounded-full shadow-lg hover:bg-blue-50 transition'
+                            },
+                                React.createElement(LucideIcons.Share2, { className: 'text-lg' })
+                            )
+                        ),
+                        
+                        // Search Bar
+                        React.createElement('div', { className: 'relative' },
+                            React.createElement('div', { className: 'absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400' },
+                                React.createElement(LucideIcons.Search, null)
+                            ),
+                            React.createElement('input', {
+                                ref: searchInputRef,
+                                type: 'text',
+                                placeholder: '🔍 Tìm tên thuốc, hoạt chất, ICD-10...',
+                                className: 'w-full pl-10 pr-4 py-3 rounded-full text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-inner',
+                                value: searchTerm,
+                                onChange: (e) => setSearchTerm(e.target.value)
+                            }),
+                            searchTerm && React.createElement('button', {
+                                onClick: () => setSearchTerm(''),
+                                className: 'absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600'
+                            },
+                                React.createElement(LucideIcons.X, null)
+                            )
+                        )
+                    )
+                ),
+
+                // Stats Cards
+                React.createElement('div', { className: 'container mx-auto px-4 -mt-2' },
+                    React.createElement('div', { className: 'grid grid-cols-2 md:grid-cols-4 gap-3' },
+                        // Total Medicines
+                        React.createElement('div', { className: 'bg-white rounded-xl shadow p-3' },
+                            React.createElement('div', { className: 'flex items-center justify-between' },
+                                React.createElement('div', null,
+                                    React.createElement('p', { className: 'text-2xl font-bold text-blue-600' }, stats.total),
+                                    React.createElement('p', { className: 'text-xs text-gray-500' }, 'Tổng thuốc')
+                                ),
+                                React.createElement(LucideIcons.Pill, { className: 'text-blue-400' })
+                            )
+                        ),
+                        
+                        // Favorites
+                        React.createElement('div', { className: 'bg-white rounded-xl shadow p-3' },
+                            React.createElement('div', { className: 'flex items-center justify-between' },
+                                React.createElement('div', null,
+                                    React.createElement('p', { className: 'text-2xl font-bold text-yellow-600' }, stats.favorites),
+                                    React.createElement('p', { className: 'text-xs text-gray-500' }, 'Đã lưu')
+                                ),
+                                React.createElement(LucideIcons.Star, { className: 'text-yellow-400' })
+                            )
+                        ),
+                        
+                        // User Added
+                        React.createElement('div', { className: 'bg-white rounded-xl shadow p-3' },
+                            React.createElement('div', { className: 'flex items-center justify-between' },
+                                React.createElement('div', null,
+                                    React.createElement('p', { className: 'text-2xl font-bold text-green-600' }, stats.userAdded),
+                                    React.createElement('p', { className: 'text-xs text-gray-500' }, 'Đã thêm')
+                                ),
+                                React.createElement(LucideIcons.Upload, { className: 'text-green-400' })
+                            )
+                        ),
+                        
+                        // Network Status
+                        React.createElement('div', { className: 'bg-white rounded-xl shadow p-3' },
+                            React.createElement('div', { className: 'flex items-center justify-between' },
+                                React.createElement('div', null,
+                                    React.createElement('p', { className: 'text-2xl font-bold', 
+                                        className: stats.online ? 'text-green-600' : 'text-gray-600' 
+                                    }, stats.online ? 'Online' : 'Offline'),
+                                    React.createElement('p', { className: 'text-xs text-gray-500' }, 'Trạng thái')
+                                ),
+                                stats.online ? 
+                                    React.createElement(LucideIcons.Wifi, { className: 'text-green-400' }) :
+                                    React.createElement(LucideIcons.WifiOff, { className: 'text-gray-400' })
+                            )
+                        )
+                    )
+                ),
+
+                // Tabs
+                React.createElement('div', { className: 'bg-white border-b shadow-sm mt-4 sticky top-0 z-10' },
+                    React.createElement('div', { className: 'container mx-auto flex overflow-x-auto scrollbar-hide' },
+                        ['all', 'favorites', 'user'].map(tab => ({
+                            id: tab,
+                            label: tab === 'all' ? 'Tất cả' : tab === 'favorites' ? 'Đã lưu' : 'Đã thêm',
+                            icon: tab === 'all' ? LucideIcons.Pill : tab === 'favorites' ? LucideIcons.Star : LucideIcons.Upload
+                        })).map(tab => 
+                            React.createElement('button', {
+                                key: tab.id,
+                                className: `flex-shrink-0 px-4 py-3 text-sm font-medium flex items-center space-x-2 ${activeTab === tab.id ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'}`,
+                                onClick: () => setActiveTab(tab.id)
+                            },
+                                React.createElement(tab.icon, { className: 'text-sm' }),
+                                React.createElement('span', null, tab.label)
+                            )
+                        )
+                    )
+                ),
+
+                // Main Content
+                React.createElement('main', { className: 'container mx-auto p-4' },
+                    // Selected Medicine Detail
+                    selectedMed && React.createElement('div', { className: 'mb-6 animate-fadeIn' },
+                        React.createElement('div', { className: 'bg-white rounded-2xl shadow-xl p-6 border border-blue-100' },
+                            React.createElement('div', { className: 'flex justify-between items-start mb-6' },
+                                React.createElement('div', null,
+                                    React.createElement('h2', { className: 'text-2xl font-bold text-blue-900' }, selectedMed['Tên thương mại']),
+                                    selectedMed.userAdded && React.createElement('span', { className: 'inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full mt-1' },
+                                        'Đã thêm thủ công'
+                                    )
+                                ),
+                                React.createElement('div', { className: 'flex space-x-2' },
+                                    React.createElement('button', {
+                                        onClick: () => toggleFavorite(selectedMed.Stt),
+                                        className: `p-2 rounded-full ${favorites.includes(selectedMed.Stt) ? 'bg-yellow-100 text-yellow-600' : 'bg-gray-100 text-gray-400'} hover:bg-yellow-50 transition`
+                                    },
+                                        React.createElement(LucideIcons.Star, { className: favorites.includes(selectedMed.Stt) ? 'fill-current' : '' })
+                                    ),
+                                    React.createElement('button', {
+                                        onClick: () => setSelectedMed(null),
+                                        className: 'p-2 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 transition'
+                                    },
+                                        React.createElement(LucideIcons.X, null)
+                                    )
+                                )
+                            ),
+                            
+                            // Medicine Details
+                            React.createElement('div', { className: 'space-y-5' },
+                                // Generic Name
+                                React.createElement('div', null,
+                                    React.createElement('div', { className: 'flex items-center text-gray-700 mb-2' },
+                                        React.createElement('div', { className: 'w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mr-3' },
+                                            React.createElement(LucideIcons.Pill, { className: 'text-blue-600 text-sm' })
+                                        ),
+                                        React.createElement('h3', { className: 'font-semibold' }, 'Hoạt chất')
+                                    ),
+                                    React.createElement('p', { className: 'text-gray-900 text-lg pl-9' }, selectedMed['Tên, HC, HL'] || 'Chưa có thông tin')
+                                ),
+                                
+                                // Dosage
+                                React.createElement('div', null,
+                                    React.createElement('div', { className: 'flex items-center text-gray-700 mb-2' },
+                                        React.createElement('div', { className: 'w-6 h-6 bg-green-100 rounded-full flex items-center justify-center mr-3' },
+                                            React.createElement(LucideIcons.Calendar, { className: 'text-green-600 text-sm' })
+                                        ),
+                                        React.createElement('h3', { className: 'font-semibold' }, 'Liều dùng')
+                                    ),
+                                    React.createElement('p', { className: 'text-gray-900 text-lg pl-9 font-bold text-green-700' }, selectedMed['Liều dùng'] || 'Chưa có thông tin')
+                                ),
+                                
+                                // ICD Codes
+                                React.createElement('div', null,
+                                    React.createElement('div', { className: 'flex items-center text-gray-700 mb-2' },
+                                        React.createElement('div', { className: 'w-6 h-6 bg-purple-100 rounded-full flex items-center justify-center mr-3' },
+                                            React.createElement(LucideIcons.FileText, { className: 'text-purple-600 text-sm' })
+                                        ),
+                                        React.createElement('h3', { className: 'font-semibold' }, 'Mã ICD-10')
+                                    ),
+                                    React.createElement('div', { className: 'pl-9' },
+                                        selectedMed['Mã ICD'] ? selectedMed['Mã ICD'].split(';').map((code, idx) => 
+                                            React.createElement('div', { key: idx, className: 'mb-1' },
+                                                React.createElement('span', { className: 'bg-purple-50 text-purple-800 px-3 py-1 rounded-full text-sm inline-block' }, 
+                                                    code.trim()
+                                                )
+                                            )
+                                        ) : React.createElement('p', { className: 'text-gray-900' }, 'Chưa có thông tin')
+                                    )
+                                ),
+                                
+                                // BHYT Notes
+                                React.createElement('div', null,
+                                    React.createElement('div', { className: 'flex items-center text-gray-700 mb-2' },
+                                        React.createElement('div', { className: 'w-6 h-6 bg-red-100 rounded-full flex items-center justify-center mr-3' },
+                                            React.createElement(LucideIcons.AlertTriangle, { className: 'text-red-600 text-sm' })
+                                        ),
+                                        React.createElement('h3', { className: 'font-semibold' }, 'Lưu ý BHYT')
+                                    ),
+                                    React.createElement('div', { className: 'bg-red-50 border border-red-100 rounded-xl p-4 pl-9' },
+                                        React.createElement('ul', { className: 'space-y-2 text-sm text-gray-700' },
+                                            React.createElement('li', { className: 'flex items-start' },
+                                                React.createElement('span', { className: 'text-red-500 mr-2' }, '•'),
+                                                'Kiểm tra thuốc trong danh mục BHYT trước khi kê đơn'
+                                            ),
+                                            React.createElement('li', { className: 'flex items-start' },
+                                                React.createElement('span', { className: 'text-red-500 mr-2' }, '•'),
+                                                'Chọn đúng mã ICD-10 phù hợp với chỉ định thuốc'
+                                            ),
+                                            React.createElement('li', { className: 'flex items-start' },
+                                                React.createElement('span', { className: 'text-red-500 mr-2' }, '•'),
+                                                'Tránh kê các thuốc có tác dụng đối nghịch nhau'
+                                            )
+                                        )
+                                    )
+                                )
+                            )
+                        )
+                    ),
+
+                    // Medicine List
+                    React.createElement('div', null,
+                        React.createElement('div', { className: 'flex justify-between items-center mb-4' },
+                            React.createElement('h3', { className: 'text-lg font-semibold text-gray-800' },
+                                `${getDisplayMeds().length} kết quả ${searchTerm ? `cho "${searchTerm}"` : ''}`
+                            ),
+                            React.createElement('div', { className: 'text-sm text-gray-500 flex items-center' },
+                                React.createElement(LucideIcons.Database, { className: 'mr-1 text-blue-500' }),
+                                `Nguồn: ${networkStatus.dataSource}`
+                            )
+                        ),
+                        
+                        getDisplayMeds().length === 0 ? 
+                            React.createElement('div', { className: 'text-center py-12' },
+                                React.createElement('div', { className: 'text-gray-300 text-6xl mb-4' },
+                                    React.createElement(LucideIcons.Search, null)
+                                ),
+                                React.createElement('p', { className: 'text-gray-500 text-lg mb-2' }, 
+                                    searchTerm ? 'Không tìm thấy thuốc phù hợp' : 'Không có thuốc nào'
+                                ),
+                                !searchTerm && React.createElement('button', {
+                                    onClick: () => setShowAddModal(true),
+                                    className: 'mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition'
+                                },
+                                    React.createElement(LucideIcons.Plus, { className: 'inline mr-2' }),
+                                    'Thêm thuốc mới'
+                                )
+                            ) :
+                            React.createElement('div', { className: 'grid gap-4' },
+                                getDisplayMeds().map((med, index) => {
+                                    const isFavorite = favorites.includes(med.Stt);
+                                    const isUserAdded = med.userAdded;
+                                    const categoryColor = isUserAdded ? 'from-green-400 to-green-600' : 
+                                                        med.Stt.includes('.0') ? 'from-blue-400 to-blue-600' : 'from-purple-400 to-purple-600';
+                                    
+                                    return React.createElement('div', {
+                                        key: med.Stt + index,
+                                        className: 'bg-white rounded-xl shadow card-hover border border-gray-100 cursor-pointer',
+                                        onClick: () => setSelectedMed(med)
+                                    },
+                                        React.createElement('div', { className: 'p-4' },
+                                            // Header with badge
+                                            React.createElement('div', { className: 'flex justify-between items-start mb-3' },
+                                                React.createElement('div', { className: 'flex-1' },
+                                                    React.createElement('div', { className: 'flex items-center mb-1' },
+                                                        React.createElement('span', { 
+                                                            className: `text-xs text-white font-bold px-2 py-1 rounded-full bg-gradient-to-r ${categoryColor}`
+                                                        }, med.Stt),
+                                                        isUserAdded && React.createElement('span', { 
+                                                            className: 'ml-2 text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full'
+                                                        }, 'Thêm thủ công')
+                                                    ),
+                                                    React.createElement('h4', { className: 'font-bold text-gray-900 text-lg' }, 
+                                                        highlightText(med['Tên thương mại'])
+                                                    ),
+                                                    med['Tên, HC, HL'] && React.createElement('p', { className: 'text-gray-600 text-sm mt-1' }, 
+                                                        highlightText(med['Tên, HC, HL'])
+                                                    )
+                                                ),
+                                                React.createElement('button', {
+                                                    onClick: (e) => {
+                                                        e.stopPropagation();
+                                                        toggleFavorite(med.Stt);
+                                                    },
+                                                    className: `text-xl ${isFavorite ? 'text-yellow-500 hover:text-yellow-600' : 'text-gray-300 hover:text-yellow-400'} transition`
+                                                },
+                                                    React.createElement(LucideIcons.Star, { className: isFavorite ? 'fill-current' : '' })
+                                                )
+                                            ),
+                                            
+                                            // Dosage and ICD
+                                            React.createElement('div', { className: 'grid grid-cols-2 gap-3 mt-4' },
+                                                React.createElement('div', null,
+                                                    React.createElement('div', { className: 'flex items-center text-gray-500 mb-1' },
+                                                        React.createElement(LucideIcons.Calendar, { className: 'text-green-500 mr-2 text-sm' }),
+                                                        React.createElement('span', { className: 'text-xs font-medium' }, 'Liều dùng')
+                                                    ),
+                                                    React.createElement('p', { className: 'text-gray-800 font-semibold' }, 
+                                                        med['Liều dùng'] || 'Không có'
+                                                    )
+                                                ),
+                                                React.createElement('div', null,
+                                                    React.createElement('div', { className: 'flex items-center text-gray-500 mb-1' },
+                                                        React.createElement(LucideIcons.FileText, { className: 'text-purple-500 mr-2 text-sm' }),
+                                                        React.createElement('span', { className: 'text-xs font-medium' }, 'ICD-10')
+                                                    ),
+                                                    React.createElement('p', { className: 'text-gray-800 line-clamp-1' }, 
+                                                        med['Mã ICD'] ? med['Mã ICD'].split(';')[0].trim() : 'Không có'
+                                                    )
+                                                )
+                                            )
+                                        )
+                                    );
+                                })
+                            )
+                    )
+                ),
+
+                // Action Buttons (Floating)
+                React.createElement('div', { className: 'fixed bottom-20 right-4 z-20 flex flex-col space-y-3' },
+                    // Add Medicine Button
+                    React.createElement('button', {
+                        onClick: () => setShowAddModal(true),
+                        className: 'bg-gradient-to-r from-green-500 to-green-600 text-white p-4 rounded-full shadow-xl hover:shadow-2xl transition-all hover:scale-105'
+                    },
+                        React.createElement(LucideIcons.Plus, { className: 'text-xl' })
+                    ),
+                    
+                    // Sync Button
+                    React.createElement('button', {
+                        onClick: () => syncOnlineData(),
+                        disabled: !networkStatus.online || networkStatus.syncing,
+                        className: `p-4 rounded-full shadow-xl hover:shadow-2xl transition-all hover:scale-105 ${networkStatus.online ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white' : 'bg-gray-400 text-gray-200 cursor-not-allowed'}`
+                    },
+                        networkStatus.syncing ? 
+                            React.createElement(LucideIcons.Refresh, { className: 'text-xl animate-spin' }) :
+                            React.createElement(LucideIcons.Cloud, { className: 'text-xl' })
+                    ),
+                    
+                    // Data Management Button
+                    React.createElement('button', {
+                        onClick: () => setShowSyncModal(true),
+                        className: 'bg-gradient-to-r from-purple-500 to-purple-600 text-white p-4 rounded-full shadow-xl hover:shadow-2xl transition-all hover:scale-105'
+                    },
+                        React.createElement(LucideIcons.Database, { className: 'text-xl' })
+                    )
+                ),
+
+                // Bottom Navigation
+                React.createElement('nav', { className: 'fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg py-3 px-6 z-10' },
+                    React.createElement('div', { className: 'flex justify-between items-center' },
+                        React.createElement('button', {
+                            className: `flex flex-col items-center ${activeTab === 'all' ? 'text-blue-600' : 'text-gray-500'}`,
+                            onClick: () => setActiveTab('all')
+                        },
+                            React.createElement(LucideIcons.Pill, { className: 'text-xl mb-1' }),
+                            React.createElement('span', { className: 'text-xs' }, 'Tất cả')
+                        ),
+                        
+                        React.createElement('button', {
+                            className: `flex flex-col items-center ${activeTab === 'favorites' ? 'text-blue-600' : 'text-gray-500'}`,
+                            onClick: () => setActiveTab('favorites')
+                        },
+                            React.createElement(LucideIcons.Star, { className: 'text-xl mb-1' }),
+                            React.createElement('span', { className: 'text-xs' }, 'Đã lưu')
+                        ),
+                        
+                        React.createElement('button', {
+                            className: `flex flex-col items-center ${activeTab === 'user' ? 'text-blue-600' : 'text-gray-500'}`,
+                            onClick: () => setActiveTab('user')
+                        },
+                            React.createElement(LucideIcons.Upload, { className: 'text-xl mb-1' }),
+                            React.createElement('span', { className: 'text-xs' }, 'Đã thêm')
+                        ),
+                        
+                        React.createElement('button', {
+                            className: 'flex flex-col items-center text-gray-500',
+                            onClick: () => setShowSyncModal(true)
+                        },
+                            React.createElement(LucideIcons.History, { className: 'text-xl mb-1' }),
+                            React.createElement('span', { className: 'text-xs' }, 'Quản lý')
+                        )
+                    )
+                ),
+
+                // Add Medicine Modal
+                showAddModal && React.createElement('div', { className: 'fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-60 p-4' },
+                    React.createElement('div', { className: 'bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl' },
+                        React.createElement('div', { className: 'flex justify-between items-center mb-6' },
+                            React.createElement('h3', { className: 'text-xl font-bold text-gray-800' }, 'Thêm thuốc mới'),
+                            React.createElement('button', {
+                                onClick: () => setShowAddModal(false),
+                                className: 'text-gray-400 hover:text-gray-600'
+                            },
+                                React.createElement(LucideIcons.X, null)
+                            )
+                        ),
+                        
+                        React.createElement('div', { className: 'space-y-4' },
+                            React.createElement('div', null,
+                                React.createElement('label', { className: 'block text-sm font-medium text-gray-700 mb-1' }, 'Tên thương mại *'),
+                                React.createElement('input', {
+                                    id: 'new-med-name',
+                                    type: 'text',
+                                    className: 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500',
+                                    placeholder: 'Ví dụ: Panadol Extra'
+                                })
+                            ),
+                            
+                            React.createElement('div', null,
+                                React.createElement('label', { className: 'block text-sm font-medium text-gray-700 mb-1' }, 'Hoạt chất'),
+                                React.createElement('input', {
+                                    id: 'new-med-generic',
+                                    type: 'text',
+                                    className: 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500',
+                                    placeholder: 'Ví dụ: Paracetamol 500mg'
+                                })
+                            ),
+                            
+                            React.createElement('div', null,
+                                React.createElement('label', { className: 'block text-sm font-medium text-gray-700 mb-1' }, 'Liều dùng'),
+                                React.createElement('input', {
+                                    id: 'new-med-dosage',
+                                    type: 'text',
+                                    className: 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500',
+                                    placeholder: 'Ví dụ: 1 viên x 3 lần/ngày'
+                                })
+                            ),
+                            
+                            React.createElement('div', null,
+                                React.createElement('label', { className: 'block text-sm font-medium text-gray-700 mb-1' }, 'Mã ICD-10'),
+                                React.createElement('input', {
+                                    id: 'new-med-icd',
+                                    type: 'text',
+                                    className: 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500',
+                                    placeholder: 'Ví dụ: R51 - Đau đầu; J00 - Cảm cúm'
+                                })
+                            )
+                        ),
+                        
+                        React.createElement('div', { className: 'flex space-x-3 mt-6' },
+                            React.createElement('button', {
+                                onClick: () => setShowAddModal(false),
+                                className: 'flex-1 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition font-medium'
+                            }, 'Hủy'),
+                            React.createElement('button', {
+                                onClick: addNewMedicine,
+                                className: 'flex-1 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 transition font-medium'
+                            }, 'Thêm thuốc')
+                        )
+                    )
+                ),
+
+                // Sync & Data Management Modal
+                showSyncModal && React.createElement('div', { className: 'fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-60 p-4' },
+                    React.createElement('div', { className: 'bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl' },
+                        React.createElement('div', { className: 'flex justify-between items-center mb-6' },
+                            React.createElement('h3', { className: 'text-xl font-bold text-gray-800' }, 'Quản lý dữ liệu'),
+                            React.createElement('button', {
+                                onClick: () => setShowSyncModal(false),
+                                className: 'text-gray-400 hover:text-gray-600'
+                            },
+                                React.createElement(LucideIcons.X, null)
+                            )
+                        ),
+                        
+                        // Sync Status
+                        React.createElement('div', { className: 'bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 mb-6' },
+                            React.createElement('div', { className: 'flex items-center justify-between mb-3' },
+                                React.createElement('div', { className: 'flex items-center' },
+                                    React.createElement(LucideIcons.NetworkWired, { className: 'text-blue-600 mr-2' }),
+                                    React.createElement('h4', { className: 'font-semibold text-gray-800' }, 'Trạng thái đồng bộ')
+                                ),
+                                React.createElement('div', { className: 'flex items-center' },
+                                    React.createElement('span', { 
+                                        className: `network-indicator mr-2 ${networkStatus.online ? 'network-online' : 'network-offline'}` 
+                                    }),
+                                    React.createElement('span', { 
+                                        className: `text-sm font-medium ${networkStatus.online ? 'text-green-600' : 'text-gray-600'}` 
+                                    }, networkStatus.online ? 'Online' : 'Offline')
+                                )
+                            ),
+                            
+                            React.createElement('div', { className: 'text-sm text-gray-600 space-y-1' },
+                                React.createElement('div', { className: 'flex justify-between' },
+                                    React.createElement('span', null, 'Nguồn dữ liệu:'),
+                                    React.createElement('span', { className: 'font-medium' }, networkStatus.dataSource)
+                                ),
+                                React.createElement('div', { className: 'flex justify-between' },
+                                    React.createElement('span', null, 'Lần cuối đồng bộ:'),
+                                    React.createElement('span', { className: 'font-medium' }, formatDate(networkStatus.lastSync))
+                                ),
+                                React.createElement('div', { className: 'flex justify-between' },
+                                    React.createElement('span', null, 'Tổng số thuốc:'),
+                                    React.createElement('span', { className: 'font-medium' }, stats.total)
+                                )
+                            )
+                        ),
+                        
+                        // Sync Settings
+                        React.createElement('div', { className: 'mb-6' },
+                            React.createElement('h4', { className: 'font-semibold text-gray-800 mb-3' }, 'Cài đặt đồng bộ'),
+                            React.createElement('div', { className: 'flex items-center justify-between p-3 bg-gray-50 rounded-lg' },
+                                React.createElement('div', null,
+                                    React.createElement('div', { className: 'font-medium text-gray-800' }, 'Tự động đồng bộ'),
+                                    React.createElement('div', { className: 'text-sm text-gray-600' }, 'Cập nhật dữ liệu khi trực tuyến')
+                                ),
+                                React.createElement('button', {
+                                    onClick: () => {
+                                        const newValue = !syncEnabled;
+                                        setSyncEnabled(newValue);
+                                        localStorage.setItem(STORAGE_KEYS.SYNC_ENABLED, JSON.stringify(newValue));
+                                    },
+                                    className: `relative inline-flex h-6 w-11 items-center rounded-full ${syncEnabled ? 'bg-blue-600' : 'bg-gray-300'} transition-colors`
+                                },
+                                    React.createElement('span', { 
+                                        className: `inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${syncEnabled ? 'translate-x-6' : 'translate-x-1'}` 
+                                    })
+                                )
+                            )
+                        ),
+                        
+                        // Data Actions
+                        React.createElement('div', { className: 'grid gap-3' },
+                            React.createElement('button', {
+                                onClick: exportData,
+                                className: 'flex items-center justify-center p-3 bg-gradient-to-r from-green-50 to-green-100 text-green-700 rounded-lg hover:from-green-100 hover:to-green-200 transition border border-green-200'
+                            },
+                                React.createElement(LucideIcons.Download, { className: 'mr-2' }),
+                                'Export dữ liệu'
+                            ),
+                            
+                            React.createElement('label', {
+                                className: 'flex items-center justify-center p-3 bg-gradient-to-r from-blue-50 to-blue-100 text-blue-700 rounded-lg hover:from-blue-100 hover:to-blue-200 transition border border-blue-200 cursor-pointer'
+                            },
+                                React.createElement(LucideIcons.Upload, { className: 'mr-2' }),
+                                'Import dữ liệu',
+                                React.createElement('input', {
+                                    type: 'file',
+                                    accept: '.json',
+                                    onChange: importData,
+                                    className: 'hidden'
+                                })
+                            ),
+                            
+                            networkStatus.online && React.createElement('button', {
+                                onClick: () => {
+                                    syncOnlineData();
+                                    setShowSyncModal(false);
+                                },
+                                className: 'flex items-center justify-center p-3 bg-gradient-to-r from-purple-50 to-purple-100 text-purple-700 rounded-lg hover:from-purple-100 hover:to-purple-200 transition border border-purple-200'
+                            },
+                                React.createElement(LucideIcons.Refresh, { className: 'mr-2' }),
+                                'Đồng bộ ngay'
+                            )
+                        )
+                    )
+                ),
+
+                // Share Success Modal
+                showShareModal && React.createElement('div', { className: 'fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-60 p-4' },
+                    React.createElement('div', { className: 'bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl' },
+                        React.createElement('div', { className: 'text-center' },
+                            React.createElement('div', { className: 'text-green-500 text-5xl mb-4' },
+                                React.createElement(LucideIcons.CheckCircle, null)
+                            ),
+                            React.createElement('h3', { className: 'text-xl font-bold mb-2' }, 'Tải về thành công!'),
+                            React.createElement('p', { className: 'text-gray-600 mb-4' }, 'File APK đã được tải xuống. Bạn có thể gửi file này cho đồng nghiệp qua Zalo, Messenger hoặc email.'),
+                            React.createElement('button', {
+                                onClick: () => setShowShareModal(false),
+                                className: 'w-full py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg font-medium hover:from-blue-700 hover:to-blue-800 transition'
+                            }, 'Đã hiểu')
+                        )
+                    )
+                ),
+
+                // Quick Tips
+                React.createElement('div', { className: 'fixed bottom-24 left-4 z-10' },
+                    React.createElement('button', {
+                        onClick: () => alert('📱 MẸO SỬ DỤNG:\n\n1️⃣ Nhấn vào thuốc để xem chi tiết\n2️⃣ Nhấn ngôi sao để lưu thuốc thường dùng\n3️⃣ Thêm thuốc mới bằng nút ➕\n4️⃣ Đồng bộ dữ liệu khi có mạng\n5️⃣ Export/Import để sao lưu\n6️⃣ Chia sẻ app với đồng nghiệp\n\n🌐 Ứng dụng hoạt động cả online và offline!'),
+                        className: 'bg-gradient-to-r from-blue-600 to-blue-700 text-white p-3 rounded-full shadow-xl hover:shadow-2xl transition hover:scale-105'
+                    },
+                        React.createElement(LucideIcons.Info, { className: 'text-xl' })
+                    )
+                )
+            );
+        }
+
+        // Render the app
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(React.createElement(App));
+    </script>
 </body>
 </html>
