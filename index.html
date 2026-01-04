@@ -1,312 +1,238 @@
-```html
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Tra Cứu ICD & Thuốc BHYT</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <style>
-        body { -webkit-tap-highlight-color: transparent; user-select: none; background-color: #f3f4f6; }
-        input, textarea { user-select: text; }
-        .hide-scrollbar::-webkit-scrollbar { display: none; }
-        .glass { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <meta name="theme-color" content="#0f766e" />
+  <title>ICD-10 Quick Reference</title>
+
+  <!-- TailwindCSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Import maps -->
+  <script type="importmap">
+  {
+    "imports": {
+      "react": "https://esm.sh/react@18",
+      "react-dom": "https://esm.sh/react-dom@18",
+      "lucide-react": "https://esm.sh/lucide-react@0.344.0"
+    }
+  }
+  </script>
+
+  <!-- Dynamic Manifest -->
+  <link rel="manifest" id="manifest-link" />
+  <script>
+    const manifest = {
+      name: "ICD-10 Quick Reference",
+      short_name: "ICD-10 QR",
+      id: ".",
+      start_url: ".",
+      scope: ".",
+      display: "standalone",
+      background_color: "#ffffff",
+      theme_color: "#0f766e"
+    };
+    const blob = new Blob([JSON.stringify(manifest)], { type: "application/json" });
+    document.getElementById("manifest-link").href = URL.createObjectURL(blob);
+  </script>
+
+  <!-- Service Worker (Blob) -->
+  <script>
+    if ("serviceWorker" in navigator) {
+      const swCode = `
+        self.addEventListener('install', e => self.skipWaiting());
+        self.addEventListener('fetch', e => {});
+      `;
+      const swBlob = new Blob([swCode], { type: "text/javascript" });
+      navigator.serviceWorker.register(URL.createObjectURL(swBlob));
+    }
+  </script>
+
+  <style>
+    * { -webkit-user-select: none; user-select: none; }
+    input { -webkit-user-select: text; user-select: text; }
+  </style>
 </head>
-<body>
-    <div id="root"></div>
 
-    <script type="text/babel" data-type="module">
-        const { useState, useEffect, useMemo } = React;
+<body class="bg-slate-50 text-slate-800">
+  <div id="root"></div>
 
-        // --- DỮ LIỆU TỪ CSV (Đã làm sạch) ---
-        const RAW_DATA = [
-            {id:1, name:"Tipharmlor", active:"Amlodipin", dose:"1-2 x 1", icd:"I10 - Bệnh lý THA"},
-            {id:2, name:"Panactol", active:"Paracetamol", dose:"1 x 2", icd:"R51 - Đau đầu; G44.2 - Đau đầu căng thẳng; M54 - Đau lưng; J00 - Cảm cúm"},
-            {id:3, name:"Piroxicam", active:"Piroxicam 20mg", dose:"1 x 1", icd:"Viêm khớp dạng thấp, viêm xương khớp, gút cấp (1v x 2)"},
-            {id:4, name:"Kagasdine", active:"Omeprazol", dose:"1 x 1", icd:"K21 - GERD; K25 - Loét dạ dày (ko K29)"},
-            {id:5, name:"Domperidon", active:"Domperidon 10mg", dose:"10mg", icd:"R11 - Buồn nôn. CCĐ: THA, Tim mạch, Tắc ruột"},
-            {id:6, name:"Bromhexin", active:"Bromhexin 8mg", dose:"1 x 3", icd:"J20 - VPQ cấp. Trẻ >10t: 2v x3; 7-10t: 1v x3-4"},
-            {id:7, name:"AGICETAM 400", active:"Piracetam 400", dose:"2 x 2", icd:"H81.3 - Chóng mặt ngoại biên; H81.1 - Chóng mặt kịch phát; R42 - Hoa mắt"},
-            {id:8, name:"AGICETAM 800", active:"Piracetam 800", dose:"1 x 2", icd:"H81.3 - Chóng mặt ngoại biên; H81.1 - Chóng mặt kịch phát; R42 - Hoa mắt"},
-            {id:9, name:"Rotundin 30", active:"Rotundin", dose:"2v", icd:"G47 - RL giấc ngủ, đau do co thắt, đau đầu do THA"},
-            {id:10, name:"Methylprednisolon 4", active:"Methylprednisolon 4mg", dose:"", icd:"Viêm da dị ứng, viêm khớp, thấp khớp, hen"},
-            {id:11, name:"Cinnarizin", active:"Cinnarizin 25mg", dose:"1-2v x 3", icd:"R42 - Hoa mắt; H81.3 - Chóng mặt; H81 - RL tiền đình; Say tàu xe"},
-            {id:12, name:"Drotaverin", active:"Drotaverin 40mg", dose:"2 x 2", icd:"K58 - HC ruột kích thích; N23 - Cơn đau quặn thận; Đau bụng kinh"},
-            {id:13, name:"Vitamin 3B", active:"B1 + B6 + B12", dose:"1 x 2", icd:"M79.2 - Đau/Viêm dây TK; G58.0 - TK liên sườn; G61 - Viêm đa dây TK"},
-            {id:14, name:"Kacerin", active:"Cetirizin 10mg", dose:"10mg", icd:"H10.1 - Viêm kết mạc dị ứng; J30.3 - Viêm mũi dị ứng; L50 - Mày đay"},
-            {id:15, name:"Captopril 25mg", active:"Captopril", dose:"1 x 2", icd:"I10 - THA. Khởi đầu 25mg x 2-3. Tối đa 150mg/ngày"},
-            {id:16, name:"Midantin/Augtipha", active:"Amoxicilin + Clavulanic", dose:"", icd:"J03 - Amidan; J01 - Viêm xoang; H66.0 - Viêm tai giữa; J20 - VPQ cấp"},
-            {id:17, name:"NEOTAZIN MR", active:"Trimetazidin 35mg", dose:"1 x 2", icd:"I20 - Cơn đau thắt ngực. Dự phòng đau thắt ngực/BTTMCB"},
-            {id:19, name:"Enalapril", active:"Anelipra 10mg", dose:"5mg (1/2v)", icd:"I10 - Bệnh lý THA"},
-            {id:20, name:"Rodilar", active:"Dextromethorphan", dose:"1-2 x 3-4", icd:"J02 - Viêm họng; J20 - VPQ cấp (Ho khan). CCĐ: TE<12T"},
-            {id:21, name:"BACIVIT-H/Biosubtyl", active:"Men vi sinh", dose:"2 x 2", icd:"K59.1 - Tiêu chảy RL CN; K58.0 - IBS có tiêu chảy"},
-            {id:23, name:"Loperamid", active:"Loperamid 2mg", dose:"1 x 2", icd:"K58.0 - IBS tiêu chảy; K59.1 - Tiêu chảy RLCN. CCĐ: Lỵ, Trướng bụng"},
-            {id:24, name:"CEFASTAD 500", active:"Cefalexin 500mg", dose:"1 x 3", icd:"J01 - Xoang; L03 - Amidan; H66.0 - Tai giữa; N39.0 - NK tiết niệu"},
-            {id:25, name:"Misanlugel", active:"Aluminum phosphat", dose:"1 x 2", icd:"K25 - LDD; K29 - Viêm DD & TT; K21 - GERD"},
-            {id:26, name:"Clorpheniramin", active:"Clorpheniramin 4mg", dose:"4mg x 3-4", icd:"J30.3 - Viêm mũi dị ứng; L50 - Mày đay. Gây ngủ"},
-            {id:27, name:"Terpin Codein", active:"Codein + Terpin", dose:"2 x 2-3", icd:"J00 - Cảm; J02 - Viêm họng; J20. Ho khan. CCĐ: TE<12T, Hen"},
-            {id:29, name:"Berberin", active:"Berberin clorid", dose:"1-2 x 2", icd:"HC lỵ, tiêu chảy. CCĐ: Phụ nữ mang thai"},
-            {id:30, name:"Medskin Clovir", active:"Acyclovir 800mg", dose:"1 x 3", icd:"B00 - Herpes; B01 - Thủy đậu; B02 - Zona (800mg x 5 lần/ngày)"},
-            {id:31, name:"Oresol", active:"Bù nước điện giải", dose:"Nhu cầu", icd:"K59.1 - Tiêu chảy. CCĐ: Suy thận, Tắc ruột"},
-            {id:32, name:"Remint - S fort", active:"Gelactive (Nhôm/Magie)", dose:"", icd:"K25 - LDD; K29 - Viêm DDTT; K21 - GERD"},
-            {id:33, name:"Biracin-E", active:"Tobramycin", dose:"Nhỏ mắt", icd:"H10 - Viêm kết mạc; H01.9 - Viêm mi mắt"},
-            {id:35, name:"Vinzix", active:"Furosemid 40mg", dose:"1 x 2", icd:"I50.0 - Suy tim; K74 - Xơ gan; N04 - Thận hư; I10 - THA"},
-            {id:37, name:"Fluocinolon", active:"Corticoid bôi", dose:"2-4 x 1", icd:"Eczema, Viêm da dị ứng, Liken phẳng. CCĐ: Nấm, Virus, Trứng cá"},
-            {id:40, name:"Mebendazol", active:"Mebendazol 500mg", dose:"1 liều", icd:"B81 - Nhiễm giun đường ruột"},
-            {id:42, name:"Griseofulvin", active:"Griseofulvin 500mg", dose:"2v/ngày", icd:"B35 - Nấm da; B35.1 - Nấm móng (4-6 tháng)"},
-            {id:43, name:"ACECYST", active:"N-acetylcystein", dose:"1 x 3", icd:"J20 - VPQ cấp; Long đờm. CCĐ: Hen, TE<2T. KO KÊ VỚI CLORPHENIRAMIN"},
-            {id:45, name:"Vitamin PP", active:"Vitamin PP 500mg", dose:"1 x 2", icd:"E52 - Thiếu niacin"},
-            {id:46, name:"Vitamin E", active:"Vitamin E 400mg", dose:"1 x 1", icd:"E56.0 - Thiếu vitamin E"},
-            {id:47, name:"Vitamin C", active:"Ascorbic 500mg", dose:"1v/ngày", icd:"E54 - Thiếu acid ascorbic"},
-            {id:49, name:"Vitamin B1", active:"Vitamin B1 250mg", dose:"1 x 2", icd:"E51 - Thiếu thiamine"},
-            {id:50, name:"Vitamin AD", active:"Vit A + D3", dose:"1 x 2", icd:"E50.0 - Khô kết mạc; E55.0 - Còi xương"},
-            {id:52, name:"TOBCOL-DEX", active:"Tobramycin + Dexamethason", dose:"Nhỏ mắt", icd:"H10 - Viêm kết mạc. CCĐ: Viêm giác mạc, Nấm, Virus"},
-            {id:53, name:"Tiphapred 5", active:"Prednisolon 5mg", dose:"1-6 x 2-4", icd:"Kháng viêm, dị ứng"},
-            {id:54, name:"Tenoxicam", active:"Tenoxicam 20mg", dose:"1 x 1", icd:"Viêm khớp dạng thấp, Gút, Đau sau PT. Uống lúc no"},
-            {id:55, name:"Sulpirid", active:"Sulpirid 50mg", dose:"50mg", icd:"F23.0 - RL loạn thần cấp; R42 - Chóng mặt (phụ trợ)"},
-            {id:56, name:"Sorbitol", active:"Sorbitol 5g", dose:"1 gói", icd:"K59.0 - Táo bón; K30 - Khó tiêu"},
-            {id:57, name:"Sacendol", active:"Para + Clorpheniramin", dose:"1-2 gói", icd:"J00 - Cảm cúm; J30 - Viêm mũi dị ứng"},
-            {id:58, name:"Ranitidin", active:"Ranitidin 300mg", dose:"1 x 1 tối", icd:"Trào ngược, LDD-TT, Khó tiêu"},
-            {id:59, name:"PYME DIAPRO MR", active:"Gliclazid 30mg", dose:"1 x 1", icd:"E11 - ĐTĐ type 2. Uống trước ăn 30p"},
-            {id:60, name:"Dorocardyl", active:"Propranolol 40mg", dose:"1 x 2", icd:"I10 - THA; I49 - Loạn nhịp. CCĐ: Hen, Suy tim sung huyết"},
-            {id:61, name:"Promethazin", active:"Promethazin bôi", dose:"Bôi", icd:"L29 - Ngứa; L50 - Mày đay; Côn trùng đốt"},
-            {id:62, name:"Zanicidol", active:"Para + Codein", dose:"1 x 3", icd:"M13 - Đau khớp; R51 - Đau đầu. CCĐ: Suy hô hấp"},
-            {id:63, name:"Dibulaxan", active:"Para + Ibuprofen", dose:"1 x 3", icd:"M79.1 - Đau cơ; M54 - Đau lưng. CCĐ: Loét DD"},
-            {id:64, name:"Osapain", active:"Diclofenac 50mg", dose:"1 x 2", icd:"M51 - Đĩa đệm; M79.1 - Đau cơ; M13 - Viêm khớp"},
-            {id:66, name:"Ofloxacin", active:"Ofloxacin 200mg", dose:"1 x 2", icd:"N39.0 - NK tiết niệu; J20 - VPQ; J01 - Xoang"},
-            {id:67, name:"Nystatin", active:"Nystatin", dose:"Rơ miệng", icd:"B37 - Nấm Candida miệng/họng"},
-            {id:69, name:"Nystatin đặt", active:"Nystatin 100k IU", dose:"1-2v đặt", icd:"B37.3 - Viêm âm đạo do nấm"},
-            {id:70, name:"Nifedipin", active:"Nifedipin 20mg", dose:"1 x 2", icd:"I10 - THA (Tác dụng kéo dài)"},
-            {id:73, name:"Mezapizin", active:"Flunarizin 5/10mg", dose:"1v tối", icd:"G43 - Migraine; H81 - Rối loạn tiền đình"},
-            {id:75, name:"Metronidazol", active:"Metronidazol 250mg", dose:"2 x 2", icd:"N76 - Viêm âm đạo; A06 - Lỵ amip; K05 - Viêm nướu"},
-            {id:76, name:"Medrol 16", active:"Methylprednisolon 16", dose:"16mg", icd:"M06.8 - Viêm khớp dạng thấp; J30 - Dị ứng; L50 - Mày đay"},
-            {id:77, name:"Kanausin", active:"Metoclopramid", dose:"1 x 3", icd:"R11 - Buồn nôn & nôn"},
-            {id:78, name:"Metformin", active:"Metformin 500/850", dose:"1 x 2", icd:"E11 - ĐTĐ type 2. Uống sau ăn"},
-            {id:80, name:"D-Cotatyl", active:"Mephenesin 500mg", dose:"1 x 3", icd:"M47 - Thoái hóa CS; M54 - Đau lưng. KO DÙNG CHO ĐAU CƠ ĐƠN THUẦN"},
-            {id:81, name:"Meyerison", active:"Eperison 50mg", dose:"1 x 3", icd:"M54 - Đau lưng; Co cứng cơ"},
-            {id:82, name:"Malthigas", active:"Al + Mg + Simethicon", dose:"1 x 3", icd:"K29 - Viêm DD; Đầy hơi; Khó tiêu"},
-            {id:84, name:"Lục vị", active:"Lục vị hoàn", dose:"1 x 2", icd:"U62 - Đau lưng; R42 - Chóng mặt; Thận âm hư"},
-            {id:86, name:"Losartan", active:"Losartan 50mg", dose:"1 x 1", icd:"I10 - Bệnh lý THA"},
-            {id:87, name:"Loratadin", active:"Loratadin 10mg", dose:"1 x 1", icd:"L50 - Mày đay; J30 - Viêm mũi dị ứng"},
-            {id:91, name:"Katrypsin", active:"Alpha chymotrypsin", dose:"2 x 2", icd:"L55 - Bỏng; Giảm phù nề (Cẩn thận xuất toán)"},
-            {id:92, name:"Kamydazol", active:"Spira + Metro", dose:"2 x 2", icd:"K05 - Viêm nướu; K04 - Viêm quanh răng"},
-            {id:93, name:"Kamelox 15", active:"Meloxicam 15mg", dose:"1 x 1", icd:"M15 - Thoái hóa khớp; M45 - Viêm CS dính khớp. Ăn no"},
-            {id:94, name:"Isosorbid", active:"Isosorbid dinitrat", dose:"10mg x 2", icd:"I20 - Cơn đau thắt ngực"},
-            {id:97, name:"Humared", active:"Sắt + Acid Folic", dose:"1 x 1", icd:"D50 - Thiếu máu thiếu sắt"},
-            {id:98, name:"Hoàn quy tỳ", active:"Đông y", dose:"1-2 x 2", icd:"Tâm tỳ hư, mất ngủ, suy nhược"},
-            {id:100, name:"Glucosamin", active:"Glucosamin 500", dose:"1 x 3", icd:"M17 - Thoái hóa khớp gối"},
-            {id:103, name:"Lipagim", active:"Fenofibrat 160/300", dose:"1 x 1", icd:"E78.1 - Tăng Triglycerid; E78.2 - RL Lipid máu"},
-            {id:110, name:"Dopolys-S", active:"Ginkgo Biloba", dose:"1 x 2", icd:"I87.2 - Suy tĩnh mạch; R42 - Chóng mặt (hỗ trợ)"},
-            {id:113, name:"Diclofenac", active:"Diclofenac 75mg", dose:"1 x 2", icd:"M13 - Viêm khớp. CCĐ: Loét dạ dày. KO KÊ CÙNG MELOXICAM"},
-            {id:116, name:"Comegim", active:"Perindopril 4mg", dose:"1 x 1", icd:"I10 - THA; I50 - Suy tim"},
-            {id:117, name:"Colchicin", active:"Colchicin 1mg", dose:"1v tối", icd:"M10 - Gút cấp/mạn"},
-            {id:121, name:"Cefuroxim", active:"Cefuroxim 500mg", dose:"1 x 2", icd:"J02 - Viêm họng; J18 - Viêm phổi"},
-            {id:122, name:"Cefixim", active:"Cefixim 200mg", dose:"1 x 2", icd:"N39 - NK tiết niệu; J02 - Viêm họng; J20 - VPQ"},
-            {id:126, name:"Caldihasan", active:"Canxi + D3", dose:"1v sáng", icd:"M81 - Loãng xương. Ko uống chiều"},
-            {id:127, name:"Bisoprolol", active:"Bisoprolol 2.5/5", dose:"1 x 1", icd:"I10 - THA; Suy tim mạn"},
-            {id:129, name:"Azithromycin", active:"Azithromycin 500", dose:"1v/ngày", icd:"J20 - VPQ; J02 - Viêm họng; H66 - Tai giữa"},
-            {id:135, name:"Ambron", active:"Ambroxol", dose:"1 x 2", icd:"J41 - VPQ mạn; J20 - VPQ cấp (Long đờm)"},
-            {id:136, name:"Alverin", active:"Alverin Citrat", dose:"1-2 x 3", icd:"K58 - HC ruột kích thích. KO DÙNG CÙNG DOMPERIDON"},
-            {id:140, name:"Tanganil", active:"Acetyl-DL-Leucin", dose:"2 x 2", icd:"H81 - Chóng mặt; R42 - Hoa mắt. Dùng đợt ngắn"},
-            {id:144, name:"Aspirin 81", active:"Acetylsalicylic acid", dose:"1 x 1", icd:"I25 - Bệnh tim thiếu máu cục bộ; Dự phòng đột quỵ"},
-            {id:146, name:"A.T Sucralfate", active:"Sucralfat", dose:"1 gói x 2", icd:"K25 - LDD; K29 - Viêm dạ dày"}
-        ];
+  <!-- Babel -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-        // --- COMPONENTS ---
+  <script type="text/babel" data-type="module">
+    import React, { useState, useEffect } from "react";
+    import { createRoot } from "react-dom/client";
+    import { Search, Star, History, Share2, BookOpen } from "lucide-react";
 
-        function ManifestHandler() {
-            useEffect(() => {
-                const manifest = {
-                    "name": "Tra Cứu Thuốc Bs Tâm",
-                    "short_name": "Thuốc BHYT",
-                    "start_url": ".",
-                    "display": "standalone",
-                    "background_color": "#ffffff",
-                    "theme_color": "#0d9488",
-                    "icons": [
-                        {
-                            "src": "https://cdn-icons-png.flaticon.com/512/3063/3063822.png",
-                            "sizes": "192x192",
-                            "type": "image/png"
-                        }
-                    ]
-                };
-                const stringManifest = JSON.stringify(manifest);
-                const blob = new Blob([stringManifest], {type: 'application/json'});
-                const manifestURL = URL.createObjectURL(blob);
-                
-                let link = document.querySelector('link[rel="manifest"]');
-                if (!link) {
-                    link = document.createElement('link');
-                    link.rel = 'manifest';
-                    document.head.appendChild(link);
-                }
-                link.href = manifestURL;
+    /* ====== ICD-10 CORE DATA (rút gọn, có thể mở rộng sau) ====== */
+    const ICD_DATA = [
+      { code: "J00", name: "Viêm mũi họng cấp", chapter: "X. Bệnh hô hấp" },
+      { code: "J06", name: "Nhiễm khuẩn hô hấp trên cấp tính", chapter: "X. Bệnh hô hấp" },
+      { code: "R51", name: "Đau đầu", chapter: "XVIII. Triệu chứng" },
+      { code: "K29", name: "Viêm dạ dày", chapter: "XI. Bệnh hệ tiêu hóa" },
+      { code: "I10", name: "Tăng huyết áp nguyên phát", chapter: "IX. Tim mạch" },
+      { code: "E11", name: "Đái tháo đường type 2", chapter: "IV. Nội tiết" }
+    ];
 
-                // Service Worker Fake
-                if ('serviceWorker' in navigator) {
-                     const swContent = `
-                        self.addEventListener('install', (e) => e.waitUntil(self.skipWaiting()));
-                        self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
-                        self.addEventListener('fetch', (e) => {});
-                    `;
-                    const swBlob = new Blob([swContent], {type: 'application/javascript'});
-                    navigator.serviceWorker.register(URL.createObjectURL(swBlob))
-                        .catch(err => console.log(err));
-                }
-            }, []);
-            return null;
+    /* ====== Fuzzy search đơn giản ====== */
+    function fuzzyMatch(text, query) {
+      const t = text.toLowerCase();
+      const q = query.toLowerCase();
+      let ti = 0;
+      for (let qi = 0; qi < q.length; qi++) {
+        ti = t.indexOf(q[qi], ti);
+        if (ti === -1) return false;
+        ti++;
+      }
+      return true;
+    }
+
+    function App() {
+      const [query, setQuery] = useState("");
+      const [favorites, setFavorites] = useState(
+        JSON.parse(localStorage.getItem("ICD_FAV") || "[]")
+      );
+      const [history, setHistory] = useState(
+        JSON.parse(localStorage.getItem("ICD_HIS") || "[]")
+      );
+      const [chapter, setChapter] = useState("ALL");
+
+      useEffect(() => {
+        localStorage.setItem("ICD_FAV", JSON.stringify(favorites));
+      }, [favorites]);
+
+      useEffect(() => {
+        localStorage.setItem("ICD_HIS", JSON.stringify(history));
+      }, [history]);
+
+      const chapters = ["ALL", ...new Set(ICD_DATA.map(i => i.chapter))];
+
+      const results = ICD_DATA.filter(i => {
+        if (chapter !== "ALL" && i.chapter !== chapter) return false;
+        if (!query) return true;
+        return (
+          i.code.toLowerCase().includes(query.toLowerCase()) ||
+          fuzzyMatch(i.name, query)
+        );
+      });
+
+      const toggleFav = code => {
+        setFavorites(f =>
+          f.includes(code) ? f.filter(x => x !== code) : [...f, code]
+        );
+      };
+
+      const selectItem = code => {
+        setHistory(h => [code, ...h.filter(x => x !== code)].slice(0, 10));
+      };
+
+      const shareApp = () => {
+        const html = document.documentElement.outerHTML;
+        const blob = new Blob([html], {
+          type: "application/vnd.android.package-archive"
+        });
+        const file = new File([blob], "ICD10_Quick_Reference.apk");
+        if (navigator.share) {
+          navigator.share({ files: [file], title: "ICD-10 Quick Reference" });
+        } else {
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(blob);
+          a.download = file.name;
+          a.click();
         }
+      };
 
-        function App() {
-            const [query, setQuery] = useState("");
-            const [selectedDrug, setSelectedDrug] = useState(null);
+      return (
+        <div className="p-4 space-y-4">
+          <header className="flex justify-between items-center">
+            <h1 className="text-lg font-bold text-teal-700 flex items-center gap-2">
+              <BookOpen size={18}/> ICD-10 Quick Reference
+            </h1>
+            <button
+              onClick={shareApp}
+              className="flex items-center gap-1 text-sm bg-teal-600 text-white px-3 py-1.5 rounded-lg"
+            >
+              <Share2 size={16}/> Chia sẻ App
+            </button>
+          </header>
 
-            const filteredData = useMemo(() => {
-                const lowerQuery = query.toLowerCase();
-                return RAW_DATA.filter(item => 
-                    item.name.toLowerCase().includes(lowerQuery) || 
-                    item.active.toLowerCase().includes(lowerQuery) ||
-                    item.icd.toLowerCase().includes(lowerQuery)
-                );
-            }, [query]);
+          <div className="relative">
+            <Search className="absolute left-3 top-3 text-slate-400" size={18} />
+            <input
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="Nhập mã ICD hoặc tên bệnh"
+              className="w-full pl-10 pr-3 py-2 rounded-xl border focus:outline-none focus:ring"
+            />
+          </div>
 
-            const shareApp = () => {
-                const htmlContent = document.documentElement.outerHTML;
-                const blob = new Blob([htmlContent], {type: 'application/vnd.android.package-archive'});
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'TraCuuThuoc_BsTam.apk';
-                a.click();
-            };
+          <div className="flex gap-2 overflow-x-auto">
+            {chapters.map(c => (
+              <button
+                key={c}
+                onClick={() => setChapter(c)}
+                className={`px-3 py-1 rounded-full text-sm whitespace-nowrap ${
+                  chapter === c
+                    ? "bg-teal-600 text-white"
+                    : "bg-white border"
+                }`}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
 
-            return (
-                <div className="min-h-screen pb-20">
-                    <ManifestHandler />
-                    
-                    {/* Header Sticky */}
-                    <div className="sticky top-0 z-50 glass shadow-sm border-b border-gray-200 px-4 py-3">
-                        <div className="flex justify-between items-center mb-3">
-                            <h1 className="text-xl font-bold text-teal-700 flex items-center gap-2">
-                                <i data-lucide="stethoscope" className="w-6 h-6"></i>
-                                Bs Tâm - Tra Cứu
-                            </h1>
-                            <button onClick={shareApp} className="text-xs bg-teal-100 text-teal-700 px-2 py-1 rounded-full font-medium active:scale-95 transition">
-                                Chia sẻ App
-                            </button>
-                        </div>
-                        <div className="relative">
-                            <i data-lucide="search" className="absolute left-3 top-2.5 w-5 h-5 text-gray-400"></i>
-                            <input 
-                                type="text" 
-                                placeholder="Tìm tên thuốc, hoạt chất, hoặc ICD..." 
-                                className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
-                                value={query}
-                                onChange={(e) => setQuery(e.target.value)}
-                                autoFocus
-                            />
-                        </div>
-                    </div>
+          {favorites.length > 0 && (
+            <div>
+              <div className="text-sm font-semibold flex items-center gap-1">
+                <Star size={14}/> Yêu thích
+              </div>
+              <div className="text-sm text-slate-600">
+                {favorites.join(", ")}
+              </div>
+            </div>
+          )}
 
-                    {/* Danh sách thuốc */}
-                    <div className="p-4 space-y-3">
-                        {filteredData.length === 0 ? (
-                            <div className="text-center text-gray-500 mt-10">
-                                <p>Không tìm thấy kết quả nào.</p>
-                            </div>
-                        ) : (
-                            filteredData.map(drug => (
-                                <div key={drug.id} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 active:bg-gray-50 transition" onClick={() => setSelectedDrug(drug)}>
-                                    <div className="flex justify-between items-start">
-                                        <div>
-                                            <h3 className="font-bold text-lg text-gray-800">{drug.name}</h3>
-                                            <p className="text-sm text-teal-600 font-medium">{drug.active}</p>
-                                        </div>
-                                        {drug.dose && (
-                                            <span className="bg-blue-50 text-blue-700 text-xs font-bold px-2 py-1 rounded-md whitespace-nowrap">
-                                                {drug.dose}
-                                            </span>
-                                        )}
-                                    </div>
-                                    <div className="mt-3 pt-2 border-t border-gray-100">
-                                        <p className="text-sm text-gray-600 leading-relaxed">
-                                            <span className="font-semibold text-gray-500 text-xs uppercase block mb-1">Chẩn đoán / ICD-10:</span>
-                                            {drug.icd}
-                                        </p>
-                                        {/* Cảnh báo nhanh nếu có CCĐ */}
-                                        {drug.icd.includes("CCĐ") && (
-                                            <div className="mt-2 text-xs text-red-600 bg-red-50 p-2 rounded border border-red-100 flex items-start gap-1">
-                                                <i data-lucide="alert-triangle" className="w-3 h-3 mt-0.5"></i>
-                                                <span>Chú ý Chống chỉ định / Xuất toán</span>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            ))
-                        )}
-                    </div>
+          {history.length > 0 && (
+            <div>
+              <div className="text-sm font-semibold flex items-center gap-1">
+                <History size={14}/> Gần đây
+              </div>
+              <div className="text-sm text-slate-600">
+                {history.join(", ")}
+              </div>
+            </div>
+          )}
 
-                    {/* Footer */}
-                    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-3 text-center text-xs text-gray-400">
-                        Dữ liệu dành riêng cho Trạm Y Tế
-                    </div>
-
-                    {/* Modal Chi tiết (Nếu cần mở rộng sau này) */}
-                    {selectedDrug && (
-                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setSelectedDrug(null)}>
-                            <div className="bg-white rounded-2xl w-full max-w-md p-5 shadow-2xl animate-fade-in" onClick={e => e.stopPropagation()}>
-                                <div className="flex justify-between items-start mb-4">
-                                    <h2 className="text-2xl font-bold text-teal-700">{selectedDrug.name}</h2>
-                                    <button onClick={() => setSelectedDrug(null)} className="p-1 bg-gray-100 rounded-full">
-                                        <i data-lucide="x" className="w-5 h-5 text-gray-500"></i>
-                                    </button>
-                                </div>
-                                <div className="space-y-4">
-                                    <div className="bg-teal-50 p-3 rounded-lg border border-teal-100">
-                                        <label className="text-xs text-teal-600 font-bold uppercase">Hoạt chất</label>
-                                        <p className="text-lg font-medium text-gray-800">{selectedDrug.active}</p>
-                                    </div>
-                                    <div>
-                                        <label className="text-xs text-gray-500 font-bold uppercase">Liều dùng tham khảo</label>
-                                        <p className="text-base text-gray-800 font-medium border-l-4 border-blue-500 pl-3 py-1 bg-gray-50 rounded-r">{selectedDrug.dose || "Xem hướng dẫn"}</p>
-                                    </div>
-                                    <div>
-                                        <label className="text-xs text-gray-500 font-bold uppercase">Mã ICD & Chỉ định</label>
-                                        <div className="text-sm text-gray-700 bg-gray-50 p-3 rounded-lg leading-relaxed">
-                                            {selectedDrug.icd.split(';').map((line, idx) => (
-                                                <p key={idx} className="mb-1 last:mb-0">• {line.trim()}</p>
-                                            ))}
-                                        </div>
-                                    </div>
-                                    {selectedDrug.icd.includes("CCĐ") || selectedDrug.icd.includes("KO") ? (
-                                        <div className="bg-red-50 text-red-700 p-3 rounded-lg border border-red-200 text-sm font-medium">
-                                            ⚠️ Cảnh báo: Có lưu ý về Chống chỉ định hoặc Xuất toán BHYT trong mục này.
-                                        </div>
-                                    ) : null}
-                                </div>
-                                <button className="w-full mt-5 bg-teal-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-teal-200 active:scale-95 transition" onClick={() => setSelectedDrug(null)}>
-                                    Đã hiểu
-                                </button>
-                            </div>
-                        </div>
-                    )}
+          <div className="space-y-2">
+            {results.map(item => (
+              <div
+                key={item.code}
+                onClick={() => selectItem(item.code)}
+                className="bg-white p-3 rounded-xl shadow flex justify-between items-center"
+              >
+                <div>
+                  <div className="font-semibold text-teal-700">
+                    {item.code} – {item.name}
+                  </div>
+                  <div className="text-xs text-slate-500">{item.chapter}</div>
                 </div>
-            );
-        }
+                <button onClick={e => { e.stopPropagation(); toggleFav(item.code); }}>
+                  <Star
+                    size={18}
+                    className={favorites.includes(item.code) ? "text-yellow-500" : "text-slate-300"}
+                  />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
-        
-        // Kích hoạt Icon
-        setTimeout(() => lucide.createIcons(), 100);
-    </script>
+    createRoot(document.getElementById("root")).render(<App />);
+  </script>
 </body>
 </html>
-
-```
